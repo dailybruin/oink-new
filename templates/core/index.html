@@ -1,0 +1,15 @@
+{% extends 'core/base.html' %} {% block content %}
+<h1>oink — very basic</h1>
+{% if user %}
+<p>Signed in as {{ user.email }} ({{ user.username }})</p>
+<p><a class="button" href="/signout/">Sign out</a></p>
+<p><a class="button" href="{% url 'packages_list' %}">Manage Packages</a></p>
+{% else %}
+<p>You must sign in with your Daily Bruin (media.ucla.edu) Google account.</p>
+<p><a class="button" href="/google/login/">Sign in with Google</a></p>
+{% endif %}
+
+<hr />
+<h3>Very small UI</h3>
+<p>This is a placeholder app.</p>
+{% endblock %}

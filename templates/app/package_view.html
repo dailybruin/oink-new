@@ -1,0 +1,8 @@
+{% extends "app/base.html" %} {% block content %}
+<h2>{{ package.slug }}</h2>
+<p>{{ package.description }}</p>
+<p>
+  Drive:
+  <a href="{{ package.google_drive_url }}">{{ package.google_drive_url }}</a>
+</p>
+{% endblock %}

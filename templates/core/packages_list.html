@@ -1,0 +1,142 @@
+{% extends 'core/base.html' %} {% block content %}
+<div class="container-fluid">
+  <ul class="nav nav-tabs mb-3">
+    {% for code, label in categories %}
+    <li class="nav-item">
+      <a
+        class="nav-link {% if active_category == code %}active{% elif not active_category and forloop.first %}active{% endif %}"
+        href="?category={{ code }}"
+        >{{ label }}</a
+      >
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="mb-3">
+    <button
+      class="btn btn-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#newPackageModal"
+    >
+      + New Package
+    </button>
+    <button class="btn btn-secondary">🔄</button>
+    <button class="btn btn-success">🖨️</button>
+  </div>
+  {% if messages %}
+  <div>
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Slug</th>
+          <th>Description</th>
+          <th>Publish Date</th>
+          <th>Last Fetched Date</th>
+          <th>Gdrive Url</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pkg in packages %}
+        <tr>
+          <td>
+            <a href="{% url 'package_detail' slug=pkg.slug %}"
+              >{{ pkg.slug }}</a
+            >
+          </td>
+          <td>{{ pkg.description|default_if_none:""|truncatechars:60 }}</td>
+          <td>{{ pkg.publish_date }}</td>
+          <td>{{ pkg.last_fetched_date }}</td>
+          <td>
+            {% if pkg.google_drive_url %}<a
+              href="{{ pkg.google_drive_url }}"
+              target="_blank"
+              >Google Drive Folder</a
+            >{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5">No packages found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- New Package Modal -->
+<div class="modal fade" id="newPackageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">New Package</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <form method="post">
+        <div class="modal-body">
+          {% csrf_token %} {% if form.errors %}
+          <div class="alert alert-danger">Please fix the errors below.</div>
+          {% endif %}
+          <div class="mb-3">
+            <label class="form-label">Package Slug:</label>
+            {{ form.slug }}
+            <div class="form-text">
+              The article slug (e.g. sports.mbb.oregon)
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Package Description:</label>
+            {{ form.description }}
+            <div class="form-text">A brief description of the package.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Package Google Drive URL:</label>
+            {{ form.google_drive_url }}
+            <div class="form-text">
+              (Optional) Link to the Google drive folder (inside the Repo
+              folder) if it has already been created. We'll create the folder
+              for you if this is left blank.
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Publish Date:</label>
+            {{ form.publish_date }}
+            <div class="form-text">The package publishing date.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Category:</label>
+            {{ form.category }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if form.errors %}
+<script>
+  // If the form had errors on server-side validation, re-open the modal so the user can see them.
+  document.addEventListener("DOMContentLoaded", function () {
+    var modalEl = document.getElementById("newPackageModal");
+    if (modalEl) {
+      var modal = new bootstrap.Modal(modalEl);
+      modal.show();
+    }
+  });
+</script>
+{% endif %} {% endblock %}
