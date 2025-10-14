@@ -23,7 +23,7 @@ def create_drive_folder(folder_name: str, *, parent_id: Optional[str] = None,
                         impersonate_user: Optional[str] = None,
                         share_public: bool = False,
                         share_domain: Optional[str] = None,
-                        share_role: str = 'reader') -> Optional[str]:
+                        share_role: str = 'reader') -> Optional[dict]:
     """
     Create a Google Drive folder and optionally set sharing.
 
@@ -35,10 +35,14 @@ def create_drive_folder(folder_name: str, *, parent_id: Optional[str] = None,
     Returns the folder URL on success, or None on failure.
     """
     if service_account_file is None:
-        service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+        # Support both our explicit var and the standard Google ADC env var
+        service_account_file = (
+            os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+            or os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        )
 
     if not service_account_file:
-        logger.info('No service account file configured; skipping Drive folder creation')
+        logger.info('No service account credentials configured; skipping Drive folder creation')
         return None
 
     if service_account is None or build is None:
@@ -48,7 +52,18 @@ def create_drive_folder(folder_name: str, *, parent_id: Optional[str] = None,
     scopes = ['https://www.googleapis.com/auth/drive']
 
     try:
-        creds = service_account.Credentials.from_service_account_file(service_account_file, scopes=scopes)
+        # Allow passing a JSON blob via env var in addition to a file path
+        creds = None
+        try:
+            if service_account_file.strip().startswith('{'):
+                import json as _json
+                info = _json.loads(service_account_file)
+                creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
+            else:
+                creds = service_account.Credentials.from_service_account_file(service_account_file, scopes=scopes)
+        except Exception:
+            # Fall back to file loading if JSON parsing failed
+            creds = service_account.Credentials.from_service_account_file(service_account_file, scopes=scopes)
         if impersonate_user:
             creds = creds.with_subject(impersonate_user)
 
