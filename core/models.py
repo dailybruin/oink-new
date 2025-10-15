@@ -58,13 +58,8 @@ class Package(models.Model):
         return self.slug
 
     def save(self, *args, **kwargs):
-        # If the user supplied a Drive URL, try to normalize it to the canonical
-        # folder link and extract the folder id. This allows users to paste a
-        # variety of Drive links (drive/folders/<id>, open?id=<id>, docs links)
-        # and still have a consistent `google_drive_url` and `google_drive_id`.
         if self.google_drive_url and not self.google_drive_id:
             url = self.google_drive_url.strip()
-            # Try several common patterns to extract an id
             patterns = [
                 r"/folders/([a-zA-Z0-9_-]+)",
                 r"[?&]id=([a-zA-Z0-9_-]+)",
@@ -80,21 +75,17 @@ class Package(models.Model):
                 self.google_drive_id = found
                 self.google_drive_url = f"https://drive.google.com/drive/folders/{found}"
 
-        # Auto-generate a Google Drive URL when none is provided.
         if not self.google_drive_url:
-            # First try to create a real Drive folder (service account impersonating a user)
             sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
             impersonate = getattr(settings, 'GOOGLE_IMPERSONATE_USER', None)
             share_public = getattr(settings, 'GOOGLE_SHARE_PUBLIC', False)
             share_domain = getattr(settings, 'GOOGLE_SHARE_DOMAIN', None)
 
-            # Attempt to create via Drive API; fallback to slug-based URL if unavailable
             folder_name = self.slug
             created = None
             try:
                 parent = getattr(settings, 'REPOSITORY_FOLDER_ID', None)
-                # Use writer role when public sharing is enabled
-                share_role = 'writer' if share_public else 'reader'
+                share_role = 'writer'
                 created = drive.create_drive_folder(
                     folder_name,
                     parent_id=parent,
@@ -110,17 +101,25 @@ class Package(models.Model):
             if created and isinstance(created, dict):
                 self.google_drive_id = created.get('id', '')
                 self.google_drive_url = created.get('url') or ''
+            elif isinstance(created, str) and created.strip():
+                url = created.strip()
+                self.google_drive_url = url
+                if not self.google_drive_id and url.startswith('http'):
+                    try:
+                        self.google_drive_id = url.rstrip('/').split('/')[-1]
+                    except Exception:
+                        self.google_drive_id = ''
             else:
-                root = getattr(settings, 'GOOGLE_DRIVE_ROOT', 'https://drive.google.com/drive/folders')
+                root = getattr(settings, 'GOOGLE_DRIVE_ROOT', 'https://drive.google.com/drive/folders') or 'https://drive.google.com/drive/folders'
+                if not isinstance(root, str) or not root.startswith('http'):
+                    root = 'https://drive.google.com/drive/folders'
+                root = root.rstrip('/')
                 safe = slugify(self.slug)
-                # Compose a reasonable default that points at a folder for this package.
                 self.google_drive_url = f"{root}/{safe}"
         super().save(*args, **kwargs)
 
-    # High-level creation/setup hook matching older flow naming
     def setup_and_save(self, user, pset_slug: str = ''):
         """Ensure Drive folder exists (id/url) and create starter doc if missing."""
-        # If a folder URL was pasted, validation/normalization already handled in save()
         created_now = False
         if not (self.google_drive_url and self.google_drive_id):
             sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
@@ -128,7 +127,7 @@ class Package(models.Model):
             share_public = getattr(settings, 'GOOGLE_SHARE_PUBLIC', False)
             share_domain = getattr(settings, 'GOOGLE_SHARE_DOMAIN', None)
             parent = getattr(settings, 'REPOSITORY_FOLDER_ID', None)
-            share_role = 'writer' if share_public else 'reader'
+            share_role = 'writer'
             try:
                 created = drive.create_drive_folder(self.slug, parent_id=parent, service_account_file=sa_file,
                                                     impersonate_user=impersonate,
@@ -141,14 +140,11 @@ class Package(models.Model):
                 self.google_drive_id = created.get('id', '')
                 self.google_drive_url = created.get('url') or self.google_drive_url
                 created_now = True
-        # Save any updates
         self.save()
-        # Create starter Google Doc
         try:
             if self.google_drive_id:
                 sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
                 impersonate = getattr(settings, 'GOOGLE_IMPERSONATE_USER', None)
-                # Ensure an article doc exists (create if missing)
                 drive.ensure_article_doc_in_folder(self.google_drive_id,
                                                    service_account_file=sa_file,
                                                    impersonate_user=impersonate,
@@ -172,7 +168,6 @@ class Package(models.Model):
         gdrive_images = []
 
         try:
-            # Prefer service account for server-side access
             from google.oauth2 import service_account as _sa
             from googleapiclient.discovery import build as _gbuild
             sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
@@ -214,21 +209,17 @@ class Package(models.Model):
                     elif mime.startswith('image'):
                         gdrive_images.append({'name': name, 'url': it.get('webContentLink') or it.get('webViewLink') or ''})
         except Exception:
-            # Leave fields as defaults and finish below
             pass
 
         self.cached_article_preview = article_text or self.cached_article_preview
         existing_images = self.images or {}
         existing_images['gdrive'] = gdrive_images
-        # Keep s3 map if present
         self.images = existing_images
-        # Simple mapping: store AML files dict under data
         self.data = aml_files or self.data
         self.last_fetched_date = dj_tz.now()
         self.processing = False
         self.save()
 
-        # Create a lightweight version snapshot
         try:
             PackageVersion.objects.create(
                 package=self,

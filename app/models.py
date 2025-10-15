@@ -84,8 +84,18 @@ class Package(models.Model):
             if created and isinstance(created, dict):
                 self.google_drive_id = created.get('id', '')
                 self.google_drive_url = created.get('url') or ''
+            elif isinstance(created, str) and created.strip():
+                url = created.strip()
+                self.google_drive_url = url
+                if not self.google_drive_id and url.startswith('http'):
+                    try:
+                        self.google_drive_id = url.rstrip('/').split('/')[-1]
+                    except Exception:
+                        self.google_drive_id = ''
             else:
-                root = getattr(settings, 'GOOGLE_DRIVE_ROOT', 'https://drive.google.com/drive/folders')
-                safe = slugify(self.slug)
+               root = getattr(settings, 'GOOGLE_DRIVE_ROOT', 'https://drive.google.com/drive/folders') or 'https://drive.google.com/drive/folders'
+                if not isinstance(root, str) or not root.startswith('http'):
+                    root = 'https://drive.google.com/drive/folders'
+                root = root.rstrip('/')                safe = slugify(self.slug)
                 self.google_drive_url = f"{root}/{safe}"
         super().save(*args, **kwargs)

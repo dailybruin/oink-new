@@ -1,6 +1,7 @@
 import os
 import logging
 from typing import Optional
+
 try:
     from requests_oauthlib import OAuth2Session
 except Exception:
@@ -18,37 +19,41 @@ except Exception:
     HttpError = Exception
 
 
-def create_drive_folder(folder_name: str, *, parent_id: Optional[str] = None,
-                        service_account_file: Optional[str] = None,
-                        impersonate_user: Optional[str] = None,
-                        share_public: bool = False,
-                        share_domain: Optional[str] = None,
-                        share_role: str = 'reader') -> Optional[str]:
-    """
-    Create a Google Drive folder and optionally set sharing.
-
-    Requirements:
-    - A service account JSON key file path provided via service_account_file.
-    - Service account must have domain-wide delegation enabled and the
-      Drive API scope granted, if impersonating a user.
-
-    Returns the folder URL on success, or None on failure.
-    """
+def create_drive_folder(
+    folder_name: str,
+    *,
+    parent_id: Optional[str] = None,
+    service_account_file: Optional[str] = None,
+    impersonate_user: Optional[str] = None,
+    share_public: bool = False,
+    share_domain: Optional[str] = None,
+    share_role: str = 'writer'
+) -> Optional[dict]:
+    """Create a Google Drive folder and optionally set sharing."""
     if service_account_file is None:
-        service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
-
+        service_account_file = (
+            os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+            or os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        )
     if not service_account_file:
-        logger.info('No service account file configured; skipping Drive folder creation')
+        logger.info('No service account credentials configured; skipping Drive folder creation')
         return None
 
     if service_account is None or build is None:
-        logger.exception('google API libraries are not installed')
+        logger.exception('Google API libraries are not installed')
         return None
 
     scopes = ['https://www.googleapis.com/auth/drive']
 
     try:
-        creds = service_account.Credentials.from_service_account_file(service_account_file, scopes=scopes)
+        # Load credentials
+        if service_account_file.strip().startswith('{'):
+            import json
+            info = json.loads(service_account_file)
+            creds = service_account.Credentials.from_service_account_info(info, scopes=scopes)
+        else:
+            creds = service_account.Credentials.from_service_account_file(service_account_file, scopes=scopes)
+
         if impersonate_user:
             creds = creds.with_subject(impersonate_user)
 
@@ -57,6 +62,7 @@ def create_drive_folder(folder_name: str, *, parent_id: Optional[str] = None,
         file_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}
         if parent_id:
             file_metadata['parents'] = [parent_id]
+
         created = service.files().create(body=file_metadata, fields='id').execute()
         folder_id = created.get('id')
         if not folder_id:
@@ -68,7 +74,7 @@ def create_drive_folder(folder_name: str, *, parent_id: Optional[str] = None,
             perm = {'type': 'anyone', 'role': share_role}
             service.permissions().create(fileId=folder_id, body=perm, fields='id').execute()
         elif share_domain and share_domain.strip():
-            perm = {'type': 'domain', 'role': 'writer', 'domain': share_domain}
+            perm = {'type': 'domain', 'role': share_role, 'domain': share_domain}
             service.permissions().create(fileId=folder_id, body=perm, fields='id').execute()
 
         url = f'https://drive.google.com/drive/folders/{folder_id}'
@@ -82,15 +88,15 @@ def create_drive_folder(folder_name: str, *, parent_id: Optional[str] = None,
         return None
 
 
-def create_google_doc_in_folder(folder_id: str, title: str = 'article.aml', *,
-                                service_account_file: Optional[str] = None,
-                                impersonate_user: Optional[str] = None,
-                                share_role: str = 'reader') -> Optional[dict]:
-    """
-    Create a Google Doc in an existing Drive folder using a service account.
-
-    Returns a dict with 'id' and 'url' on success or None on failure.
-    """
+def create_google_doc_in_folder(
+    folder_id: str,
+    title: str = 'article.aml',
+    *,
+    service_account_file: Optional[str] = None,
+    impersonate_user: Optional[str] = None,
+    share_role: str = 'writer'
+) -> Optional[dict]:
+    """Create a Google Doc in an existing Drive folder using a service account."""
     if service_account_file is None:
         service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
 
@@ -99,7 +105,7 @@ def create_google_doc_in_folder(folder_id: str, title: str = 'article.aml', *,
         return None
 
     if service_account is None or build is None:
-        logger.exception('google API libraries are not installed')
+        logger.exception('Google API libraries are not installed')
         return None
 
     scopes = ['https://www.googleapis.com/auth/drive']
@@ -111,12 +117,10 @@ def create_google_doc_in_folder(folder_id: str, title: str = 'article.aml', *,
 
         service = build('drive', 'v3', credentials=creds, cache_discovery=False)
 
-        file_metadata = {
-            'name': title,
-            'mimeType': 'application/vnd.google-apps.document',
-        }
+        file_metadata = {'name': title, 'mimeType': 'application/vnd.google-apps.document'}
         if folder_id:
             file_metadata['parents'] = [folder_id]
+
         created = service.files().create(body=file_metadata, fields='id,webViewLink').execute()
         file_id = created.get('id')
         webview = created.get('webViewLink')
@@ -124,6 +128,7 @@ def create_google_doc_in_folder(folder_id: str, title: str = 'article.aml', *,
             logger.error('Failed to create Google Doc %s in folder %s', title, folder_id)
             return None
 
+        # Share the document if requested
         try:
             perm = {'type': 'anyone', 'role': share_role}
             service.permissions().create(fileId=file_id, body=perm, fields='id').execute()
@@ -140,14 +145,46 @@ def create_google_doc_in_folder(folder_id: str, title: str = 'article.aml', *,
         return None
 
 
-def get_oauth2_session(user, token_updater=True):
-    """
-    Build an OAuth2Session for the given Django user using saved
-    GoogleCredential tokens. Returns None if credentials are missing.
+def ensure_article_doc_in_folder(
+    folder_id: str,
+    *,
+    service_account_file: Optional[str] = None,
+    impersonate_user: Optional[str] = None,
+    share_role: str = 'writer'
+) -> Optional[dict]:
+    """Ensure a Google Doc named 'article.aml' exists in the folder; create if missing."""
+    if service_account_file is None:
+        service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
+    if not service_account_file or service_account is None or build is None:
+        return None
 
-    If token_updater is True, a callback will persist refreshed tokens
-    back into the GoogleCredential model.
-    """
+    try:
+        creds = service_account.Credentials.from_service_account_file(service_account_file, scopes=['https://www.googleapis.com/auth/drive'])
+        if impersonate_user:
+            creds = creds.with_subject(impersonate_user)
+
+        service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+
+        q = f"name contains 'article' and mimeType = 'application/vnd.google-apps.document' and '{folder_id}' in parents"
+        found = service.files().list(q=q, fields='files(id,name,webViewLink)').execute().get('files', [])
+
+        if found:
+            return {'id': found[0].get('id'), 'url': found[0].get('webViewLink')}
+
+        return create_google_doc_in_folder(
+            folder_id,
+            title='article.aml',
+            service_account_file=service_account_file,
+            impersonate_user=impersonate_user,
+            share_role=share_role
+        )
+    except Exception:
+        logger.exception('ensure_article_doc_in_folder failed for %s', folder_id)
+        return None
+
+
+def get_oauth2_session(user, token_updater=True):
+    """Build an OAuth2Session for a user using saved GoogleCredential tokens."""
     if OAuth2Session is None:
         logger.error('requests-oauthlib not installed; cannot create OAuth2Session')
         return None
@@ -165,7 +202,7 @@ def get_oauth2_session(user, token_updater=True):
         return None
 
     if not cred.refresh_token and not cred.access_token:
-        logger.info('GoogleCredential missing tokens for user %s', user.username)
+        logger.info('GoogleCredential missing tokens for user %s', getattr(user, 'username', 'unknown'))
         return None
 
     client_id = os.getenv('GOOGLE_CLIENT_ID')
@@ -188,39 +225,12 @@ def get_oauth2_session(user, token_updater=True):
                 cred.expires_at = timezone.now() + timezone.timedelta(seconds=int(expires_in))
             cred.save()
         except Exception:
-            logger.exception('Failed to update GoogleCredential for user %s', user.username)
+            logger.exception('Failed to update GoogleCredential for user %s', getattr(user, 'username', 'unknown'))
 
     session = OAuth2Session(client_id, token=token, scope=token.get('scope'))
-    # requests_oauthlib expects a dict for auto-refresh info
     session._client_id = client_id
     session._client_secret = client_secret
-
     if token_updater:
         session.token_updater = _token_updater
 
     return session
-
-
-def ensure_article_doc_in_folder(folder_id: str, *,
-                                 service_account_file: Optional[str] = None,
-                                 impersonate_user: Optional[str] = None,
-                                 share_role: str = 'writer') -> Optional[dict]:
-    """Ensure a Google Doc named like 'article.aml' exists in the folder; create if missing."""
-    if service_account_file is None:
-        service_account_file = os.getenv('GOOGLE_SERVICE_ACCOUNT_FILE')
-    if not service_account_file or service_account is None or build is None:
-        return None
-    try:
-        creds = service_account.Credentials.from_service_account_file(service_account_file, scopes=['https://www.googleapis.com/auth/drive'])
-        if impersonate_user:
-            creds = creds.with_subject(impersonate_user)
-        service = build('drive', 'v3', credentials=creds, cache_discovery=False)
-        q = f"name contains 'article' and mimeType = 'application/vnd.google-apps.document' and '{folder_id}' in parents"
-        found = service.files().list(q=q, fields='files(id,name,webViewLink)').execute().get('files', [])
-        if found:
-            return {'id': found[0].get('id'), 'url': found[0].get('webViewLink')}
-        return create_google_doc_in_folder(folder_id, title='article.aml', service_account_file=service_account_file,
-                                           impersonate_user=impersonate_user, share_role=share_role)
-    except Exception:
-        logger.exception('ensure_article_doc_in_folder failed for %s', folder_id)
-        return None
