@@ -1,5 +1,5 @@
 {% extends 'core/base.html' %} {% block content %}
-<h1>oink — very basic</h1>
+<h1>oink</h1>
 {% if user %}
 <p>Signed in as {{ user.email }} ({{ user.username }})</p>
 <p><a class="button" href="/signout/">Sign out</a></p>
@@ -10,6 +10,5 @@
 {% endif %}
 
 <hr />
-<h3>Very small UI</h3>
 <p>This is a placeholder app.</p>
 {% endblock %}
