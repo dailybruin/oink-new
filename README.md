@@ -1,4 +1,3 @@
-# oink — minimal Django + Slack auth example
 
 1. Create a Python 3.11 venv and install requirements:
 
