@@ -1,3 +1,5 @@
+/* SELECTOR (FILTER INTERFACE) */
+
 .selector {
     display: flex;
     flex: 1;
@@ -205,6 +207,8 @@
     background-position: 0 -144px;
 }
 
+/* STACKED SELECTORS */
+
 .stacked {
     float: left;
     width: 490px;
@@ -377,6 +381,8 @@ p.url {
     font-weight: normal;
 }
 
+/* FILE UPLOADS */
+
 p.file-upload {
     line-height: 20px;
     margin: 0;
@@ -401,6 +407,7 @@ span.clearable-file-input label {
     float: none;
 }
 
+/* CALENDARS & CLOCKS */
 
 .calendarbox, .clockbox {
     margin: 5px auto;
@@ -564,6 +571,8 @@ ul.timelist, .timelist li {
     padding: 2px;
 }
 
+/* EDIT INLINE */
+
 .inline-deletelink {
     float: right;
     text-indent: -9999px;
@@ -578,6 +587,7 @@ ul.timelist, .timelist li {
     cursor: pointer;
 }
 
+/* RELATED WIDGET WRAPPER */
 .related-widget-wrapper {
     display: flex;
     gap: 0 10px;
@@ -596,6 +606,7 @@ ul.timelist, .timelist li {
     filter: grayscale(0);
 }
 
+/* GIS MAPS */
 .dj_map {
     width: 600px;
     height: 400px;

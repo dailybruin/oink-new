@@ -38,8 +38,8 @@ html[data-theme="light"],
     --message-warning-bg: #ffc;
     --message-error-bg: #ffefef;
 
-    --darkened-bg: #f8f8f8; 
-    --selected-bg: #e4e4e4;
+    --darkened-bg: #f8f8f8; /* A bit darker than --body-bg */
+    --selected-bg: #e4e4e4; /* E.g. selected table cells */
     --selected-row: #ffc;
 
     --button-fg: #fff;
@@ -102,6 +102,7 @@ body {
     background: var(--body-bg);
 }
 
+/* LINKS */
 
 a:link, a:visited {
     color: var(--link-fg);
@@ -358,6 +359,8 @@ tr:nth-child(odd) + .row-form-errors .errorlist {
     background: var(--darkened-bg);
 }
 
+/* SORTABLE TABLES */
+
 thead th {
     padding: 5px 10px;
     line-height: normal;
@@ -486,7 +489,10 @@ textarea {
     vertical-align: top;
 }
 
-
+/*
+Minifiers remove the default (text) "type" attribute from "input" HTML tags.
+Add input:not([type]) to make the CSS stylesheet work the same.
+*/
 input:not([type]), input[type=text], input[type=password], input[type=email],
 input[type=url], input[type=number], input[type=tel], textarea, select,
 .vTextField {
@@ -498,6 +504,10 @@ input[type=url], input[type=number], input[type=tel], textarea, select,
     background-color: var(--body-bg);
 }
 
+/*
+Minifiers remove the default (text) "type" attribute from "input" HTML tags.
+Add input:not([type]) to make the CSS stylesheet work the same.
+*/
 input:not([type]):focus, input[type=text]:focus, input[type=password]:focus,
 input[type=email]:focus, input[type=url]:focus, input[type=number]:focus,
 input[type=tel]:focus, textarea:focus, select:focus, .vTextField:focus {
@@ -509,10 +519,12 @@ select {
 }
 
 select[multiple] {
+    /* Allow HTML size attribute to override the height in the rule above. */
     height: auto;
     min-height: 150px;
 }
 
+/* FORM BUTTONS */
 
 .button, input[type=submit], input[type=button], .submit-row input, a.button {
     background: var(--button-bg);
@@ -557,6 +569,7 @@ input[type=button][disabled].default {
 }
 
 
+/* MODULES */
 
 .module {
     border: none;
@@ -602,6 +615,7 @@ input[type=button][disabled].default {
     border-collapse: collapse;
 }
 
+/* MESSAGES & ERRORS */
 
 ul.messagelist {
     padding: 0;
@@ -697,6 +711,7 @@ td ul.errorlist + input, td ul.errorlist + select, td ul.errorlist + textarea {
     padding: 5px 0 0 12px;
 }
 
+/* BREADCRUMBS */
 
 div.breadcrumbs {
     background: var(--breadcrumbs-bg);
@@ -714,6 +729,7 @@ div.breadcrumbs a:focus, div.breadcrumbs a:hover {
     color: var(--breadcrumbs-fg);
 }
 
+/* ACTION ICONS */
 
 .viewlink, .inlineviewlink {
     padding-left: 16px;
@@ -749,6 +765,7 @@ a.deletelink:focus, a.deletelink:hover {
     text-decoration: none;
 }
 
+/* OBJECT TOOLS */
 
 .object-tools {
     font-size: 0.625rem;
@@ -804,6 +821,7 @@ a.deletelink:focus, a.deletelink:hover {
     background-image: url(../img/tooltag-add.svg);
 }
 
+/* OBJECT HISTORY */
 
 #change-history table {
     width: 100%;
@@ -820,6 +838,7 @@ a.deletelink:focus, a.deletelink:hover {
     overflow: hidden;
 }
 
+/* PAGE STRUCTURE */
 
 #container {
     position: relative;
@@ -881,6 +900,7 @@ a.deletelink:focus, a.deletelink:hover {
   }
 }
 
+/* COLUMN TYPES */
 
 .colMS {
     margin-right: 300px;
@@ -904,6 +924,7 @@ a.deletelink:focus, a.deletelink:hover {
     width: auto;
 }
 
+/* HEADER */
 
 #header {
     width: auto;
@@ -998,6 +1019,7 @@ a.deletelink:focus, a.deletelink:hover {
     margin-bottom: 1px;
 }
 
+/* SIDEBAR */
 
 #content-related {
     background: var(--darkened-bg);
@@ -1073,6 +1095,7 @@ a.deletelink:focus, a.deletelink:hover {
     background: var(--close-button-hover-bg);
 }
 
+/* POPUP */
 .popup #content {
     padding: 20px;
 }
@@ -1085,6 +1108,7 @@ a.deletelink:focus, a.deletelink:hover {
     padding: 10px 20px;
 }
 
+/* PAGINATOR */
 
 .paginator {
     display: flex;

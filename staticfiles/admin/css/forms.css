@@ -1,5 +1,7 @@
 @import url('widgets.css');
 
+/* FORM ROWS */
+
 .form-row {
     overflow: hidden;
     padding: 10px;
@@ -32,6 +34,7 @@ form .form-row p {
     padding-bottom: 10px;
 }
 
+/* FORM LABELS */
 
 label {
     font-weight: normal;
@@ -43,6 +46,7 @@ label {
     font-weight: bold;
 }
 
+/* RADIO BUTTONS */
 
 form div.radiolist div {
     padding-right: 7px;
@@ -85,6 +89,7 @@ fieldset .inline-heading,
     color: var(--header-link-color);
 }
 
+/* ALIGNED FIELDSETS */
 
 .aligned label {
     display: block;
@@ -194,6 +199,7 @@ fieldset .fieldBox {
     margin-right: 20px;
 }
 
+/* WIDE FIELDSETS */
 
 .wide label {
     width: 200px;
@@ -214,6 +220,7 @@ form div.help ul {
     width: 450px;
 }
 
+/* COLLAPSIBLE FIELDSETS */
 
 .collapse summary .fieldset-heading,
 .collapse summary .inline-heading {
@@ -225,11 +232,13 @@ form div.help ul {
     padding: 0;
 }
 
+/* MONOSPACE TEXTAREAS */
 
 fieldset.monospace textarea {
     font-family: var(--font-family-monospace);
 }
 
+/* SUBMIT ROW */
 
 .submit-row {
     padding: 12px 14px 12px;
@@ -353,6 +362,7 @@ body.popup .submit-row {
     width: 20em;
 }
 
+/* INLINES */
 
 .inline-group {
     padding: 0;
@@ -461,6 +471,7 @@ body.popup .submit-row {
     display: none;
 }
 
+/* RELATED FIELD ADD ONE / LOOKUP */
 
 .related-lookup {
     margin-left: 5px;

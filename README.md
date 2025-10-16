@@ -1,29 +1,98 @@
+# Oink - Package Management System
 
-1. Create a Python 3.11 venv and install requirements:
+A Django application for managing article packages with Google Drive integration.
 
-   python -m venv .venv
-   .venv\Scripts\activate
+## Project Structure
+
+```
+oink/
+├── packages/                 # Main Django app (renamed from 'core')
+│   ├── models.py            # Package and GoogleCredential models
+│   ├── views.py             # Authentication views (Google OAuth)
+│   ├── package_views.py      # Package CRUD views (renamed from packages_views.py)
+│   ├── admin.py             # Django admin configuration
+│   ├── forms.py             # Package forms
+│   ├── drive.py             # Google Drive API integration
+│   ├── urls.py              # URL routing
+│   └── migrations/          # Database migrations
+├── templates/
+│   ├── packages/            # Package-related templates
+│   └── components/          # Reusable template components
+├── oink_project/            # Django project settings
+│   ├── settings.py          # Main settings file
+│   ├── urls.py             # Root URL configuration
+│   └── wsgi.py             # WSGI configuration
+├── keys/                    # Google service account credentials
+├── staticfiles/             # Collected static files
+└── manage.py               # Django management script
+```
+
+## Key Improvements Made
+
+### 1. **Eliminated Duplication**
+
+- Removed duplicate `app/` directory (was identical to `core/`)
+- Consolidated all functionality into single `packages/` app
+- Removed legacy archive directories (`legacy/`, `src/`)
+
+### 2. **Improved Naming**
+
+- Renamed `core/` → `packages/` (more intuitive)
+- Renamed `packages_views.py` → `package_views.py` (cleaner)
+- Renamed `slack_login()` → `google_login()` (accurate naming)
+
+### 3. **Code Consolidation**
+
+- Created `_get_drive_settings()` helper method to reduce repetitive Google Drive setup code
+- Consolidated duplicate template references
+- Streamlined admin actions
+
+### 4. **Project Structure**
+
+- Fixed broken settings file (was importing non-existent `src.settings`)
+- Updated all references to use correct app names
+- Moved templates to proper structure
+
+## Setup
+
+1. Install dependencies:
+
+   ```bash
    pip install -r requirements.txt
+   ```
 
-2. Create a .env file next to `manage.py` with:
+2. Create `.env` file with required settings:
 
-   SECRET_KEY=replace-me
+   ```
+   SECRET_KEY=your-secret-key
    DJANGO_DEBUG=1
-   SLACK_CLIENT_ID=your-slack-client-id
-   SLACK_CLIENT_SECRET=your-slack-client-secret
-   and some more...
+   GOOGLE_CLIENT_ID=your-google-client-id
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   EMAIL_DOMAIN=media.ucla.edu
+   GOOGLE_SERVICE_ACCOUNT_FILE=path/to/service-account.json
+   ```
 
-3. Run migrations and start the server:
+3. Run migrations:
 
+   ```bash
    python manage.py migrate
+   ```
+
+4. Start development server:
+   ```bash
    python manage.py runserver
+   ```
 
+## Features
 
-Notes on email restriction
-The app checks the email returned by Slack and only allows addresses ending with `@media.ucla.edu`.
-This enforces that users must have Slack accounts with Daily Bruin emails.
+- **Package Management**: Create, view, and manage article packages
+- **Google Drive Integration**: Automatic folder creation and file management
+- **Google OAuth**: Secure authentication with Google accounts
+- **Admin Interface**: Django admin for package management
+- **Template System**: Clean, organized template structure
 
-Docker (build and run)
+## Models
 
-Or with docker-compose:
-docker-compose up --build
+- **Package**: Main article package with Google Drive integration
+- **GoogleCredential**: OAuth tokens for Google API access
+- **PackageVersion**: Version history for packages
