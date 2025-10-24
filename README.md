@@ -33,7 +33,7 @@ oink/
 1. Install dependencies:
 
    ```bash
-   pip install -r requirements.txt
+   npm install
    ```
 
 2. Create `.env` file with required settings:
@@ -55,5 +55,5 @@ oink/
 
 4. Start development server:
    ```bash
-   python manage.py runserver
+   docker-compose up --build
    ```
