@@ -27,31 +27,6 @@ oink/
 └── manage.py               # Django management script
 ```
 
-## Key Improvements Made
-
-### 1. **Eliminated Duplication**
-
-- Removed duplicate `app/` directory (was identical to `core/`)
-- Consolidated all functionality into single `packages/` app
-- Removed legacy archive directories (`legacy/`, `src/`)
-
-### 2. **Improved Naming**
-
-- Renamed `core/` → `packages/` (more intuitive)
-- Renamed `packages_views.py` → `package_views.py` (cleaner)
-- Renamed `slack_login()` → `google_login()` (accurate naming)
-
-### 3. **Code Consolidation**
-
-- Created `_get_drive_settings()` helper method to reduce repetitive Google Drive setup code
-- Consolidated duplicate template references
-- Streamlined admin actions
-
-### 4. **Project Structure**
-
-- Fixed broken settings file (was importing non-existent `src.settings`)
-- Updated all references to use correct app names
-- Moved templates to proper structure
 
 ## Setup
 
@@ -82,17 +57,3 @@ oink/
    ```bash
    python manage.py runserver
    ```
-
-## Features
-
-- **Package Management**: Create, view, and manage article packages
-- **Google Drive Integration**: Automatic folder creation and file management
-- **Google OAuth**: Secure authentication with Google accounts
-- **Admin Interface**: Django admin for package management
-- **Template System**: Clean, organized template structure
-
-## Models
-
-- **Package**: Main article package with Google Drive integration
-- **GoogleCredential**: OAuth tokens for Google API access
-- **PackageVersion**: Version history for packages
