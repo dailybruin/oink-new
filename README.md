@@ -33,7 +33,7 @@ oink/
 1. Install dependencies:
 
    ```bash
-   npm install
+   pip install
    ```
 
 2. Create `.env` file with required settings:
