@@ -1,4 +1,11 @@
-{% extends 'packages/base.html' %} {% block content %}
+{% extends 'packages/base.html' %} 
+
+
+
+{% block content %}
+<header>
+  {% include 'components/navbar.html' %}
+</header>
 <div class="container-fluid">
   <ul class="nav nav-tabs mb-3">
     {% for code, label in categories %}
