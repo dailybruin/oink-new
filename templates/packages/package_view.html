@@ -1,0 +1,111 @@
+{% extends "packages/base.html" %} {% block content %}
+<h1>{{ package.slug }}</h1>
+<p>{{ package.description }}</p>
+<p>
+  Drive:
+  <a href="{{ package.google_drive_url }}" target="_blank"
+    >{{ package.google_drive_url }}</a
+  >
+</p>
+<button id="fetch-btn">Fetch from Drive</button>
+
+<!-- This line of code will run cached package payload so the page can render instantly after reloads -->
+{{ initial_payload|json_script:"initial-payload" }}
+
+<div style="display: flex; gap: 24px; align-items: flex-start">
+  <div style="flex: 1 1 auto; min-width: 0">
+    <h2>Preview</h2>
+    <div id="article-container">(no article loaded)</div>
+
+    <h2>Data</h2>
+    <pre id="data-container" style="white-space: pre-wrap">(none)</pre>
+
+    <h2>Metadata</h2>
+    <pre id="meta-container">{}</pre>
+  </div>
+  <div style="width: 380px; max-width: 40%">
+    <h2>Images</h2>
+    <div id="images-panel"></div>
+    <ul id="images-list" style="margin-top: 8px"></ul>
+  </div>
+</div>
+
+<script>
+  // Render package data into the page
+  function renderPackageData(data) {
+    if (data.error) {
+      alert("Error: " + data.error);
+      return;
+    }
+
+    // Render the article preview text/HTML
+    document.getElementById("article-container").innerHTML =
+      data.article || "(empty)";
+
+    // Show the raw JSON payload for debugging/reference
+    const dataJson = data.data || data.aml_files || {};
+    document.getElementById("data-container").textContent = JSON.stringify(
+      dataJson,
+      null,
+      2
+    );
+    document.getElementById("meta-container").textContent = JSON.stringify(
+      {},
+      null,
+      2
+    );
+
+    // Display thumbnails and links for images pulled from Drive/GridFS (HOWEVER THIS IS BROKEN FOR NOW)
+    const imagesPanel = document.getElementById("images-panel");
+    const imagesList = document.getElementById("images-list");
+    imagesPanel.innerHTML = "";
+    imagesList.innerHTML = "";
+    const imgs = data.images || [];
+    imgs.forEach((it) => {
+      if (it.url) {
+        const wrap = document.createElement("div");
+        wrap.style.marginBottom = "12px";
+        const img = document.createElement("img");
+        img.src = it.url;
+        img.alt = it.name || "image";
+        img.style.maxWidth = "100%";
+        img.style.border = "1px solid #ddd";
+        img.style.borderRadius = "6px";
+        wrap.appendChild(img);
+        const link = document.createElement("div");
+        link.textContent = "@" + it.url;
+        link.style.wordBreak = "break-all";
+        link.style.marginTop = "6px";
+        wrap.appendChild(link);
+        imagesPanel.appendChild(wrap);
+      }
+    });
+    imgs.forEach((it) => {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = it.url;
+      a.target = "_blank";
+      a.textContent = it.name || it.url;
+      li.appendChild(a);
+      imagesList.appendChild(li);
+    });
+  }
+
+  // Hydrate the page with cached data so it survives reloads
+  const initialPayload = JSON.parse(
+    document.getElementById("initial-payload").textContent
+  );
+  renderPackageData(initialPayload);
+
+  document.getElementById("fetch-btn").addEventListener("click", function () {
+    const slug = "{{ package.slug }}";
+    fetch(`/packages/${slug}/fetch/`)
+      .then((r) => r.json())
+      .then(renderPackageData)
+      .catch((err) => {
+        alert("Fetch failed: " + err);
+      });
+  });
+</script>
+
+{% endblock %}
