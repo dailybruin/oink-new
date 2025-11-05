@@ -170,6 +170,12 @@ class Package(models.Model):
         article_text = ''
         aml_files = {}
         gdrive_images = []
+        
+        """ added to support GridFS storage of images and AML files """
+        gridfs_images = []
+        gridfs_aml = {}
+        gridfs_image_assets = []
+        gridfs_aml_assets = []
 
         try:
             from google.oauth2 import service_account as _sa
@@ -182,47 +188,262 @@ class Package(models.Model):
                 q = f"'{folder_id}' in parents"
                 resp = service.files().list(q=q, fields='files(id,name,mimeType,webViewLink,webContentLink)').execute()
                 items = resp.get('files', [])
+                print(f"[FETCH] Found {len(items)} files in Drive folder")
                 try:
                     import archieml as _arch
-                except Exception:
+                    print(f"[FETCH] ArchieML imported successfully")
+                except Exception as e:
                     _arch = None
+                    print(f"[FETCH] ArchieML import failed: {e}")
                 for it in items:
                     name = it.get('name') or ''
                     mime = it.get('mimeType') or ''
                     fid = it.get('id')
-                    if name.lower().startswith('article') and mime == 'application/vnd.google-apps.document':
+                    print(f"[FETCH] Processing file: {name} (mime: {mime})")
+                    # Check for .aml files FIRST (even if they're Google Docs)
+                    if name.lower().endswith('.aml'):
+                        print(f"[FETCH] Downloading AML file: {name}")
                         try:
-                            exported = service.files().export(fileId=fid, mimeType='text/plain').execute()
-                            article_text = exported.decode('utf-8') if isinstance(exported, bytes) else exported
-                        except Exception:
-                            article_text = ''
-                    elif name.lower().endswith('.aml'):
-                        try:
-                            media = service.files().get_media(fileId=fid).execute()
+                            # If it's a Google Doc, export it; otherwise download directly
+                            if mime == 'application/vnd.google-apps.document':
+                                print(f"[FETCH] Exporting Google Doc as plain text")
+                                media = service.files().export(fileId=fid, mimeType='text/plain').execute()
+                            else:
+                                print(f"[FETCH] Downloading file directly")
+                                media = service.files().get_media(fileId=fid).execute()
                             txt = media.decode('utf-8') if isinstance(media, bytes) else media
+                            print(f"[FETCH] Downloaded {len(txt)} bytes of AML")
+                            if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                                try:
+                                    from .file_store import store_text
+                                    file_id = store_text(
+                                        name=name,
+                                        text=txt,
+                                        content_type='text/plain; charset=utf-8',
+                                        slug=self.slug,
+                                        asset_type='aml',
+                                        extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                    )
+                                    gridfs_aml[name] = file_id
+                                    gridfs_aml_assets.append({
+                                        'name': name,
+                                        'file_id': file_id,
+                                        'asset_type': 'aml',
+                                        'content_type': 'text/plain; charset=utf-8',
+                                        'source': 'drive',
+                                        'source_id': fid,
+                                    })
+                                except Exception:
+                                    pass
                             if _arch:
                                 try:
                                     parsed = _arch.loads(txt)
+                                    # Fix malformed pull quotes from ArchieML parser
+                                    if isinstance(parsed, dict) and 'content' in parsed and isinstance(parsed['content'], list):
+                                        fixed_content = []
+                                        i = 0
+                                        while i < len(parsed['content']):
+                                            block = parsed['content'][i]
+                                            # Check if next block exists
+                                            next_block = parsed['content'][i + 1] if i + 1 < len(parsed['content']) else None
+
+                                            # Detect malformed pull quote split:
+                                            # 1. {"type": "pull", "value": {}}
+                                            # 2. {"value": {"caption": "..."}} (missing type)
+                                            if (isinstance(block, dict) and
+                                                block.get('type') == 'pull' and
+                                                (not block.get('value') or not block['value'].get('caption')) and
+                                                next_block and isinstance(next_block, dict) and
+                                                'type' not in next_block and
+                                                'value' in next_block and
+                                                isinstance(next_block.get('value'), dict) and
+                                                'caption' in next_block['value']):
+                                                # Merge the two objects
+                                                fixed_content.append({
+                                                    'type': 'pull',
+                                                    'value': {
+                                                        'caption': next_block['value']['caption']
+                                                    }
+                                                })
+                                                i += 2  # Skip both blocks
+                                            else:
+                                                fixed_content.append(block)
+                                                i += 1
+                                        parsed['content'] = fixed_content
+                                        print(f"[FETCH] Fixed malformed pull quotes in content")
+
+                                    # Reorder image block fields (alt, url, credit, caption)
+                                    if isinstance(parsed, dict) and 'content' in parsed and isinstance(parsed['content'], list):
+                                        for block in parsed['content']:
+                                            if isinstance(block, dict) and block.get('type') == 'image' and isinstance(block.get('value'), dict):
+                                                image_val = block['value']
+                                                ordered_image = {}
+                                                image_field_order = ['alt', 'url', 'credit', 'caption']
+                                                for key in image_field_order:
+                                                    if key in image_val:
+                                                        ordered_image[key] = image_val[key]
+                                                # Add any remaining fields
+                                                for key in image_val.keys():
+                                                    if key not in ordered_image:
+                                                        ordered_image[key] = image_val[key]
+                                                block['value'] = ordered_image
+
+                                    # Reorder fields to match Kerckhoff format:
+                                    # author, content, then metadata in specific order
+                                    if isinstance(parsed, dict):
+                                        ordered = {}
+                                        # Define exact field order
+                                        field_order = [
+                                            'author', 'content', 'excerpt', 'updated', 'coveralt',
+                                            'coverimg', 'headline', 'authorbio', 'covercred',
+                                            'articleType', 'authoremail', 'authortwitter'
+                                        ]
+                                        # Add fields in specified order
+                                        for key in field_order:
+                                            if key in parsed:
+                                                ordered[key] = parsed[key]
+                                        # Add any remaining fields not in the order list
+                                        for key in parsed.keys():
+                                            if key not in ordered:
+                                                ordered[key] = parsed[key]
+                                        parsed = ordered
+
                                     aml_files[name] = parsed
-                                except Exception:
+                                    print(f"[FETCH] Successfully parsed AML with ArchieML")
+                                except Exception as e:
                                     aml_files[name] = txt
+                                    print(f"[FETCH] ArchieML parsing failed: {e}, storing raw text")
                             else:
                                 aml_files[name] = txt
+                                print(f"[FETCH] No ArchieML, storing raw text")
+                            
+                            # Optionally persist AML to MongoDB GridFS
+                            if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                                try:
+                                    from .file_store import store_text
+                                    file_id = store_text(
+                                        name=name,
+                                        text=txt,
+                                        content_type='text/plain; charset=utf-8',
+                                        slug=self.slug,
+                                        asset_type='aml',
+                                        extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                    )
+                                    gridfs_aml[name] = file_id
+                                    gridfs_aml_assets.append({
+                                        'name': name,
+                                        'file_id': file_id,
+                                        'asset_type': 'aml',
+                                        'content_type': 'text/plain; charset=utf-8',
+                                        'source': 'drive',
+                                        'source_id': fid,
+                                    })
+                                except Exception:
+                                    pass
                         except Exception:
                             aml_files[name] = ''
+                    elif name.lower().startswith('article') and mime == 'application/vnd.google-apps.document':
+                        # Article file that is NOT .aml (e.g., just "article" or "Article doc")
+                        print(f"[FETCH] Exporting article Google Doc (not .aml)")
+                        try:
+                            exported = service.files().export(fileId=fid, mimeType='text/plain').execute()
+                            article_text = exported.decode('utf-8') if isinstance(exported, bytes) else exported
+                            print(f"[FETCH] Exported {len(article_text)} bytes of article text")
+                        except Exception as e:
+                            article_text = ''
+                            print(f"[FETCH] Failed to export article: {e}")
                     elif mime.startswith('image'):
-                        gdrive_images.append({'name': name, 'url': it.get('webContentLink') or it.get('webViewLink') or ''})
+                        url = it.get('webContentLink') or it.get('webViewLink') or ''
+                        gdrive_images.append({'name': name, 'url': url})
+                        
+                        # Optionally persist image bytes to MongoDB GridFS
+                        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                            try:
+                                content = service.files().get_media(fileId=fid).execute()
+                                if isinstance(content, str):
+                                    content = content.encode('utf-8')
+                                from .file_store import store_bytes
+                                file_id = store_bytes(
+                                    name=name,
+                                    content_type=mime or 'application/octet-stream',
+                                    data=content,
+                                    slug=self.slug,
+                                    asset_type='image',
+                                    extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                )
+                                gridfs_images.append({'name': name, 'id': file_id, 'content_type': mime or 'application/octet-stream'})
+                                gridfs_image_assets.append({
+                                    'name': name,
+                                    'file_id': file_id,
+                                    'asset_type': 'image',
+                                    'content_type': mime or 'application/octet-stream',
+                                    'source': 'drive',
+                                    'source_id': fid,
+                                })
+                            except Exception:
+                                pass
         except Exception:
             pass
 
-        self.cached_article_preview = article_text or self.cached_article_preview
-        existing_images = self.images or {}
-        existing_images['gdrive'] = gdrive_images
-        self.images = existing_images
-        self.data = aml_files or self.data
+        """ Replace cached fields with the freshly fetched content,
+        
+        just in case if we want to edit the .aml and images later """
+        self.cached_article_preview = article_text
+        images_payload = {'gdrive': gdrive_images}
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_images:
+            images_payload['gridfs'] = gridfs_images
+        self.images = images_payload
+        
+        fallback_text = self.cached_article_preview or ''
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and not gridfs_aml_assets and fallback_text.strip():
+            try:
+                from .file_store import store_text
+                fallback_name = f"{self.slug}-article.aml"
+                file_id = store_text(
+                    name=fallback_name,
+                    text=fallback_text,
+                    content_type='text/plain; charset=utf-8',
+                    slug=self.slug,
+                    asset_type='aml',
+                    extra_metadata={'source': 'drive', 'generated': 'doc-export'},
+                )
+                gridfs_aml[fallback_name] = file_id
+                gridfs_aml_assets.append({
+                    'name': fallback_name,
+                    'file_id': file_id,
+                    'asset_type': 'aml',
+                    'content_type': 'text/plain; charset=utf-8',
+                    'source': 'drive',
+                    'source_id': None,
+                    'generated': 'doc-export',
+                })
+                if fallback_name not in aml_files:
+                    aml_files[fallback_name] = fallback_text
+            except Exception:
+                pass
+
+        """ Store AML data exactly as fetched so subsequent loads match Drive content """
+        data_out = aml_files
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_aml:
+            data_out['_gridfs_aml'] = gridfs_aml
+        self.data = data_out
+        print(f"[FETCH] Saving data to database: {list(data_out.keys())}")
+        print(f"[FETCH] Image count - gdrive: {len(gdrive_images)}, gridfs: {len(gridfs_images)}")
         self.last_fetched_date = dj_tz.now()
         self.processing = False
         self.save()
+        print(f"[FETCH] Fetch completed successfully!")
+
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+            try:
+                from .file_store import update_package_asset_index
+                update_package_asset_index(
+                    self.slug,
+                    aml_assets=gridfs_aml_assets,
+                    image_assets=gridfs_image_assets,
+                )
+            except Exception:
+                pass
 
         try:
             PackageVersion.objects.create(
