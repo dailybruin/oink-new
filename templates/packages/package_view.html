@@ -14,14 +14,14 @@
 
 <div style="display: flex; gap: 24px; align-items: flex-start">
   <div style="flex: 1 1 auto; min-width: 0">
-    <h2>Preview</h2>
-    <div id="article-container">(no article loaded)</div>
-
     <h2>Data</h2>
     <pre id="data-container" style="white-space: pre-wrap">(none)</pre>
 
     <h2>Metadata</h2>
     <pre id="meta-container">{}</pre>
+
+    <h2>Preview</h2>
+    <div id="article-container">(no article loaded)</div>
   </div>
   <div style="width: 380px; max-width: 40%">
     <h2>Images</h2>
@@ -31,6 +31,17 @@
 </div>
 
 <script>
+  // HTML escape utility function to prevent XSS
+  function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
   // Render package data into the page
   function renderPackageData(data) {
     if (data.error) {
@@ -38,24 +49,164 @@
       return;
     }
 
-    // Render the article preview text/HTML
-    document.getElementById("article-container").innerHTML =
-      data.article || "(empty)";
+    // Get parsed AML data
+    const amlFiles = data.data || data.aml_files || {};
+    const articleData = amlFiles['article.aml'] || {};
+
+    // Build HTML from AML structure (matching Kerckhoff preview format)
+    let html = '';
+
+    // Render headline
+    if (articleData.headline) {
+      html += '<h1 class="display-4 mb-3">' + escapeHtml(articleData.headline) + '</h1>';
+    }
+
+    // Render author
+    if (articleData.author) {
+      html += '<p class="lead text-muted">By ' + escapeHtml(articleData.author) + '</p>';
+    }
+
+    // Render author bio
+    if (articleData.authorbio) {
+      html += '<p class="text-muted"><em>' + escapeHtml(articleData.authorbio) + '</em></p>';
+    }
+
+    // Render author email
+    if (articleData.authoremail) {
+      html += '<p class="text-muted">Email: ' + escapeHtml(articleData.authoremail) + '</p>';
+    }
+
+    // Render author twitter
+    if (articleData.authortwitter) {
+      html += '<p class="text-muted">Twitter: ' + escapeHtml(articleData.authortwitter) + '</p>';
+    }
+
+    // Render excerpt
+    if (articleData.excerpt) {
+      html += '<p class="lead">' + escapeHtml(articleData.excerpt) + '</p>';
+    }
+
+    // Render cover image (make it downloadable with link wrapper)
+    if (articleData.coverimg) {
+      html += '<a href="' + escapeHtml(articleData.coverimg) + '" download>';
+      html += '<img src="' + escapeHtml(articleData.coverimg) + '" class="img-fluid mb-4" alt="' + escapeHtml(articleData.coveralt || '') + '" />';
+      html += '</a>';
+    }
+
+    // Render cover credit
+    if (articleData.covercred) {
+      html += '<p class="text-muted small">' + escapeHtml(articleData.covercred) + '</p>';
+    }
+
+    // Render coveralt
+    if (articleData.coveralt && !articleData.coverimg) {
+      html += '<p class="text-muted">' + escapeHtml(articleData.coveralt) + '</p>';
+    }
+
+    // Render updated date
+    if (articleData.updated) {
+      html += '<p class="text-muted small">Updated: ' + escapeHtml(articleData.updated) + '</p>';
+    }
+
+    // Render article type
+    if (articleData.articleType) {
+      html += '<p class="text-muted small">Type: ' + escapeHtml(articleData.articleType) + '</p>';
+    }
+
+    // Render content blocks
+    const content = articleData.content || [];
+    if (content.length > 0) {
+      html += '<div class="article-content mt-4">';
+
+      // Preprocess content to fix malformed pull quotes from ArchieML
+      // Sometimes ArchieML splits pull quotes into two objects:
+      // 1. {"type": "pull", "value": {}}
+      // 2. {"value": {"caption": "..."}} (missing type)
+      const fixedContent = [];
+      for (let i = 0; i < content.length; i++) {
+        const block = content[i];
+        const nextBlock = content[i + 1];
+
+        // Check if this is a malformed pull quote split
+        if (block.type === 'pull' &&
+            (!block.value || !block.value.caption) &&
+            nextBlock &&
+            !nextBlock.type &&
+            nextBlock.value &&
+            nextBlock.value.caption) {
+          // Merge the two objects into one proper pull quote
+          fixedContent.push({
+            type: 'pull',
+            value: {
+              caption: nextBlock.value.caption
+            }
+          });
+          i++; // Skip the next block since we merged it
+        } else {
+          fixedContent.push(block);
+        }
+      }
+
+      // Render the fixed content blocks
+      fixedContent.forEach(block => {
+        if (block.type === 'text') {
+          html += '<p class="mb-3">' + escapeHtml(block.value) + '</p>';
+        } else if (block.type === 'pull') {
+          const caption = (block.value && block.value.caption) ? block.value.caption : '';
+          html += '<div class="card bg-light my-4 p-4">';
+          html += '<blockquote class="blockquote mb-0">';
+          html += '<p class="mb-0">' + escapeHtml(caption) + '</p>';
+          html += '</blockquote>';
+          html += '</div>';
+        } else if (block.type === 'image') {
+          // Render image blocks with caption and credit
+          const imageUrl = (block.value && block.value.url) ? block.value.url : '';
+          const imageAlt = (block.value && block.value.alt) ? block.value.alt : '';
+          const imageCaption = (block.value && block.value.caption) ? block.value.caption : '';
+          const imageCredit = (block.value && block.value.credit) ? block.value.credit : '';
+
+          html += '<figure class="my-4">';
+          html += '<a href="' + escapeHtml(imageUrl) + '" download>';
+          html += '<img src="' + escapeHtml(imageUrl) + '" class="img-fluid" alt="' + escapeHtml(imageAlt) + '" />';
+          html += '</a>';
+          if (imageCaption) {
+            html += '<figcaption class="text-muted small mt-2">' + escapeHtml(imageCaption) + '</figcaption>';
+          }
+          if (imageCredit) {
+            html += '<p class="text-muted small">' + escapeHtml(imageCredit) + '</p>';
+          }
+          html += '</figure>';
+        }
+      });
+      html += '</div>';
+    }
+
+    // Fallback to plain text if no AML content
+    if (!html && data.article) {
+      html = '<pre style="white-space: pre-wrap;">' + escapeHtml(data.article) + '</pre>';
+    }
+
+    document.getElementById("article-container").innerHTML = html || "(empty)";
 
     // Show the raw JSON payload for debugging/reference
+    // Filter out _gridfs_aml as it's internal storage metadata
     const dataJson = data.data || data.aml_files || {};
+    const filteredData = {};
+    for (const key in dataJson) {
+      if (key !== '_gridfs_aml') {
+        filteredData[key] = dataJson[key];
+      }
+    }
     document.getElementById("data-container").textContent = JSON.stringify(
-      dataJson,
-      null,
-      2
-    );
-    document.getElementById("meta-container").textContent = JSON.stringify(
-      {},
+      filteredData,
       null,
       2
     );
 
-    // Display thumbnails and links for images pulled from Drive/GridFS (HOWEVER THIS IS BROKEN FOR NOW)
+    // Leave metadata section empty as requested
+    document.getElementById("meta-container").textContent = "{}";
+
+    // Display thumbnails and links for images pulled from Drive/GridFS
     const imagesPanel = document.getElementById("images-panel");
     const imagesList = document.getElementById("images-list");
     imagesPanel.innerHTML = "";
@@ -71,11 +222,23 @@
         img.style.maxWidth = "100%";
         img.style.border = "1px solid #ddd";
         img.style.borderRadius = "6px";
+
+        // Add error handling for broken images
+        img.onerror = function() {
+          this.style.display = 'none';
+          const errorMsg = document.createElement("div");
+          errorMsg.textContent = "Failed to load image";
+          errorMsg.className = "text-danger small";
+          wrap.appendChild(errorMsg);
+        };
+
         wrap.appendChild(img);
         const link = document.createElement("div");
         link.textContent = "@" + it.url;
         link.style.wordBreak = "break-all";
         link.style.marginTop = "6px";
+        link.style.fontSize = "12px";
+        link.style.color = "#666";
         wrap.appendChild(link);
         imagesPanel.appendChild(wrap);
       }
@@ -98,12 +261,30 @@
   renderPackageData(initialPayload);
 
   document.getElementById("fetch-btn").addEventListener("click", function () {
+    const btn = this;
     const slug = "{{ package.slug }}";
+
+    // Disable button and show loading state
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = "Fetching...";
+
     fetch(`/packages/${slug}/fetch/`)
-      .then((r) => r.json())
-      .then(renderPackageData)
+      .then((r) => {
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        }
+        return r.json();
+      })
+      .then((data) => {
+        renderPackageData(data);
+        btn.textContent = originalText;
+        btn.disabled = false;
+      })
       .catch((err) => {
-        alert("Fetch failed: " + err);
+        alert("Fetch failed: " + err.message);
+        btn.textContent = originalText + " (retry)";
+        btn.disabled = false;
       });
   });
 </script>

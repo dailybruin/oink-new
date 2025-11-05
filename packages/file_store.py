@@ -90,13 +90,14 @@ def read_file(file_id: str) -> Tuple[bytes, str, str]:
     """ Here we read the file in chunks to avoid loading large files entirely into memory """
     try:
         out.write(stream.read())
+        # Access metadata before closing the stream
+        metadata = getattr(stream, 'metadata', {}) or {}
+        content_type = metadata.get("contentType") or "application/octet-stream"
+        filename = getattr(stream, 'filename', None) or file_id
     finally:
         stream.close()
     data = out.getvalue()
-    
-    """ Get content type and filename from file document metadata """
-    content_type = (stream.file_document.get("metadata", {}) or {}).get("contentType") or "application/octet-stream"
-    filename = stream.filename or file_id
+
     return data, content_type, filename
 
 
