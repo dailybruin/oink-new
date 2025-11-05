@@ -135,6 +135,41 @@ def _parse_aml_plain_text(txt: str) -> dict:
         i += 1
     return {'article.aml': result}
 
+def _parse_plain_text_preview(txt: str) -> str:
+    result = ''
+    lines = (txt or '').splitlines()
+    # print(lines)
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+        
+        if line.startswith('Space filler for'):
+            result += f"{line}<br><br>"
+        elif line.startswith('headline'):
+            header = i + 15
+            while i < header:
+                line = lines[i].strip()
+                result += f"{line} "
+                i += 1
+            result += "<br><br>"
+            continue
+        elif line == '+[content]':
+            result += f"{line} "  
+        elif line == '{.pull}':
+            pull = i + 3
+            while i < pull:
+                result += lines[i] + " "
+                i += 1
+            result += "<br><br>"
+            continue
+        else:
+            result += f"{lines[i]}<br><br>"
+        i += 1
+    return result
+
 def _read_local_sample(slug: str):
     base = os.path.join(os.path.dirname(__file__), 'sample_data', slug)
     article_path = os.path.join(base, 'article.aml')
