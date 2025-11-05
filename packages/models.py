@@ -170,6 +170,10 @@ class Package(models.Model):
         article_text = ''
         aml_files = {}
         gdrive_images = []
+        
+        """ added to support GridFS storage of images and AML files """
+        gridfs_images = []
+        gridfs_aml = {}
 
         try:
             from google.oauth2 import service_account as _sa
@@ -208,18 +212,49 @@ class Package(models.Model):
                                     aml_files[name] = txt
                             else:
                                 aml_files[name] = txt
+                            
+                            # Optionally persist AML to MongoDB GridFS
+                            if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                                try:
+                                    from .file_store import store_text
+                                    file_id = store_text(name=name, text=txt, content_type='text/plain; charset=utf-8')
+                                    gridfs_aml[name] = file_id
+                                except Exception:
+                                    pass
                         except Exception:
                             aml_files[name] = ''
                     elif mime.startswith('image'):
-                        gdrive_images.append({'name': name, 'url': it.get('webContentLink') or it.get('webViewLink') or ''})
+                        url = it.get('webContentLink') or it.get('webViewLink') or ''
+                        gdrive_images.append({'name': name, 'url': url})
+                        
+                        # Optionally persist image bytes to MongoDB GridFS
+                        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                            try:
+                                content = service.files().get_media(fileId=fid).execute()
+                                if isinstance(content, str):
+                                    content = content.encode('utf-8')
+                                from .file_store import store_bytes
+                                file_id = store_bytes(name=name, content_type=mime or 'application/octet-stream', data=content)
+                                gridfs_images.append({'name': name, 'id': file_id})
+                            except Exception:
+                                pass
         except Exception:
             pass
 
-        self.cached_article_preview = article_text or self.cached_article_preview
-        existing_images = self.images or {}
-        existing_images['gdrive'] = gdrive_images
-        self.images = existing_images
-        self.data = aml_files or self.data
+        """ Replace cached fields with the freshly fetched content,
+        
+        just in case if we want to edit the .aml and images later """
+        self.cached_article_preview = article_text
+        images_payload = {'gdrive': gdrive_images}
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_images:
+            images_payload['gridfs'] = gridfs_images
+        self.images = images_payload
+        
+        """ Store AML data exactly as fetched so subsequent loads match Drive content """
+        data_out = aml_files
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_aml:
+            data_out['_gridfs_aml'] = gridfs_aml
+        self.data = data_out
         self.last_fetched_date = dj_tz.now()
         self.processing = False
         self.save()

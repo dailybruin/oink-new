@@ -66,6 +66,27 @@ def packages_list(request):
 def package_create(request):
     return redirect('packages_list')
 
+""" This new function will flatten the stored image in google drive into a simple list for templates """
+def _format_images(images_data):
+    
+    """ Convert stored images data into a flat list of images with name and URL for templates """
+    if not images_data:
+        return []
+    formatted = []
+    if isinstance(images_data, dict):
+        formatted.extend(images_data.get('gdrive', []) or [])
+        # Provide links to GridFS-backed images when available.
+        for item in images_data.get('gridfs', []) or []:
+            file_id = item.get('id')
+            if file_id:
+                formatted.append({
+                    'name': item.get('name'),
+                    'url': f"/files/{file_id}/",
+                })
+    elif isinstance(images_data, list):
+        formatted = images_data
+    return formatted
+
 
 def package_detail(request, slug):
     try:
@@ -73,8 +94,22 @@ def package_detail(request, slug):
     except Package.DoesNotExist:
         return HttpResponseNotFound('Package not found')
 
+    """ This part below will persist the cached data for the template to use directly
+        
+    Send the cached data so the template can preload without extra fetches 
+    
+    Also check the package_fetch function below to get the idea """
+    initial_payload = {
+        'slug': pkg.slug,
+        'article': pkg.cached_article_preview or '',
+        'aml_files': pkg.data or {},
+        'data': pkg.data or {},
+        'images': _format_images(pkg.images),
+    }
+
     return render(request, 'packages/package_view.html', {
         'package': pkg,
+        'initial_payload': initial_payload, # initial_payload will check for cached fields in the slug
     })
 
 
@@ -159,67 +194,27 @@ def package_fetch(request, slug):
         pkg = Package.objects.get(slug=slug)
     except Package.DoesNotExist:
         return JsonResponse({'error': 'Package not found'}, status=404)
+    
+    """ Pull the latest files from Drive, so the model persists the results for reuse """
+    try:
+        pkg.fetch_from_gdrive(request.user)
+        pkg.refresh_from_db()
+    except Exception:
+        sample = _read_local_sample(slug)
+        if sample['article']:
+            return JsonResponse({
+                'slug': pkg.slug,
+                'article': sample['article'],
+                'aml_files': sample['aml_files'],
+                'data': sample['aml_files'],
+                'images': sample['images'],
+            })
+        return JsonResponse({'error': 'Unable to fetch package content.'}, status=500)
 
-    folder_id = pkg.google_drive_id or (pkg.google_drive_url or '').rstrip('/').split('/')[-1]
-
-    sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
-    if sa_file and service_account and build:
-        try:
-            scopes = ['https://www.googleapis.com/auth/drive']
-            creds = service_account.Credentials.from_service_account_file(sa_file, scopes=scopes)
-            service = build('drive', 'v3', credentials=creds, cache_discovery=False)
-
-            q = f"'{folder_id}' in parents"
-            resp = service.files().list(q=q, fields='files(id,name,mimeType,webViewLink,webContentLink)').execute()
-            items = resp.get('files', [])
-
-            article_text = ''
-            aml_files = {}
-            images = []
-
-            for it in items:
-                name = it.get('name')
-                mime = it.get('mimeType')
-                fid = it.get('id')
-                if name and name.lower().startswith('article') and mime == 'application/vnd.google-apps.document':
-                    try:
-                        exported_txt = service.files().export(fileId=fid, mimeType='text/plain').execute()
-                        plain = exported_txt.decode('utf-8') if isinstance(exported_txt, bytes) else exported_txt
-                        article_text = plain
-                        parsed = None
-                        if archieml:
-                            try:
-                                parsed = archieml.loads(plain)
-                            except Exception:
-                                parsed = None
-                        if not parsed or not isinstance(parsed, dict) or 'content' not in parsed:
-                            parsed = _parse_aml_plain_text(plain).get('article.aml')
-                        aml_files['article.aml'] = parsed
-                    except Exception:
-                        article_text = ''
-                elif name and name.lower().endswith('.aml'):
-                    try:
-                        media = service.files().get_media(fileId=fid).execute()
-                        txt = media.decode('utf-8') if isinstance(media, bytes) else media
-                        if archieml:
-                            try:
-                                parsed = archieml.loads(txt)
-                                aml_files[name] = parsed
-                            except Exception:
-                                aml_files[name] = txt
-                        else:
-                            aml_files[name] = txt
-                    except Exception:
-                        aml_files[name] = ''
-                elif mime and mime.startswith('image'):
-                    images.append({'name': name, 'url': it.get('webContentLink') or it.get('webViewLink') or ''})
-
-            return JsonResponse({'slug': pkg.slug, 'article': article_text, 'aml_files': aml_files, 'data': aml_files, 'images': images})
-        except Exception:
-            pass
-
-    sample = _read_local_sample(slug)
-    if sample['article']:
-        return JsonResponse({'slug': pkg.slug, 'article': sample['article'], 'aml_files': sample['aml_files'], 'data': sample['aml_files'], 'images': sample['images']})
-
-    return JsonResponse({'error': 'Unable to fetch package content from Drive and no local sample available.'}, status=500)
+    return JsonResponse({
+        'slug': pkg.slug,
+        'article': pkg.cached_article_preview or '',
+        'aml_files': pkg.data or {},
+        'data': pkg.data or {},
+        'images': _format_images(pkg.images),
+    })
