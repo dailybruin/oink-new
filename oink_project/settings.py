@@ -104,6 +104,7 @@ MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
 MONGODB_DB_NAME = os.getenv('MONGODB_DB_NAME', 'oink')
 MONGODB_BUCKET = os.getenv('MONGODB_BUCKET', 'files')
 MONGODB_FILESTORE_ENABLED = os.getenv('MONGODB_FILESTORE_ENABLED', '0') == '1'
+MONGODB_ASSET_COLLECTION = os.getenv('MONGODB_ASSET_COLLECTION', 'package_assets')
 
 LOGGING = {
     'version': 1,

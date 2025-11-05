@@ -31,3 +31,9 @@ def get_bucket(db_name: Optional[str] = None, bucket_name: Optional[str] = None)
     _db = get_db(db_name)
     _bucket = bucket_name or os.getenv("MONGODB_BUCKET")
     return GridFSBucket(_db, bucket_name=_bucket)
+
+
+def get_collection(collection_name: str, db_name: Optional[str] = None):
+    """Return a MongoDB collection handle for the configured database."""
+    _db = get_db(db_name)
+    return _db[collection_name]
