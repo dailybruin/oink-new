@@ -185,7 +185,7 @@ def package_fetch(request, slug):
                     try:
                         exported_txt = service.files().export(fileId=fid, mimeType='text/plain').execute()
                         plain = exported_txt.decode('utf-8') if isinstance(exported_txt, bytes) else exported_txt
-                        article_text = plain
+                        # article_text = plain
                         parsed = None
                         if archieml:
                             try:
@@ -195,6 +195,7 @@ def package_fetch(request, slug):
                         if not parsed or not isinstance(parsed, dict) or 'content' not in parsed:
                             parsed = _parse_aml_plain_text(plain).get('article.aml')
                         aml_files['article.aml'] = parsed
+                        article_text = _parse_plain_text_preview(plain)
                     except Exception:
                         article_text = ''
                 elif name and name.lower().endswith('.aml'):
