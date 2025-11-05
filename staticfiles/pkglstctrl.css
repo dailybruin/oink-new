@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* === Package list header buttons === */
+.btn {
+    transition: transform 1s ease-in-out;
+    background-color: #E06150;
+    border-color: #E06150;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;    
+    font-weight: 700;
+}
+
+.btn-primary {
+    border-radius: 16px;
+    margin-right: 0.75rem;
+    min-width: 12rem;
+}
+
+.pkg-lst .btn-secondary {
+    border-radius: 12px;
+    min-width: 4rem;
+    padding: 0;
+}
+
+.btn-primary:hover, .btn-secondary:hover{
+    background-color:#C05448;
+    border-color: #C05448;
+}
+
+.btn-primary:active, .btn-secondary:active {
+    --bs-btn-active-bg:#C05448;
+    --bs-btn-active-border-color: #C05448;
+}
+
+.icon-large {
+    font-size: 1.5rem;
+}
+
+/* === Search bar === */
+.search-container {
+    position: relative;
+}
+
+.search-container .form-control {
+    border: 1px solid #120008;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 3rem;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, 
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #FFFBF7;
+
+}
+
+.search-icon {
+    position: absolute;
+    top: 50%;
+    left: 1rem;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+    font-size: 1.1rem;
+}
+
+/* === Paginator === */
+.paginator .page-link {
+    border: none;
+}

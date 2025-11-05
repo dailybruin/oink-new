@@ -6,29 +6,48 @@
 <header>
   {% include 'components/navbar.html' %}
 </header>
-<div class="container-fluid">
-  <ul class="nav nav-tabs mb-3">
-    {% for code, label in categories %}
-    <li class="nav-item">
-      <a
-        class="nav-link {% if active_category == code %}active{% elif not active_category and forloop.first %}active{% endif %}"
-        href="?category={{ code }}"
-        >{{ label }}</a
+<div class="container-fluid pkg-lst">
+  <div class="mb-3 d-flex justify-content-between align-items-center">
+    <div>
+      <button
+        class="btn btn-primary"
+        data-bs-toggle="modal"
+        data-bs-target="#newPackageModal"
       >
-    </li>
-    {% endfor %}
-  </ul>
-
-  <div class="mb-3">
-    <button
-      class="btn btn-primary"
-      data-bs-toggle="modal"
-      data-bs-target="#newPackageModal"
-    >
-      + New Package
-    </button>
-    <button class="btn btn-secondary">🔄</button>
-    <button class="btn btn-success">🖨️</button>
+        + New Package
+      </button>
+      <button class="btn btn-secondary"><i class="bi bi-hdd icon-large"></i></button>
+    </div>
+    <div class="paginator">
+      <ul class="pagination">
+        <li class="page-item {% if not packages.has_previous %}disabled{% endif %}">
+          <a 
+          class="page-link" 
+          href="?{% if active_category %}category={{ active_category }}&{% endif %}{% if packages.has_previous %}page={{ packages.previous_page_number }}{% else %}#{% endif %}"
+          {% if not packages.has_previous %}
+          aria-disabled="true"
+          {% endif %}
+          ><i class="bi bi-chevron-left"></i></a>
+        </li>
+        {% for page_num in visible_page_range %}
+        <li class="page-item">
+          <a class="page-link {% if page_num == packages.number %}active{% endif %}" 
+            href="?{% if active_category %}category={{ active_category }}&{% endif %}page={{ page_num }}">
+            {{page_num}}
+          </a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if not packages.has_next %} disabled {% endif %}">
+          <a 
+          class="page-link" 
+          href="?{% if active_category %}category={{ active_category }}&{% endif %}{% if packages.has_next %}page={{ packages.next_page_number }}{% else %}#{% endif %}">
+            <i class="bi bi-chevron-right"></i></a>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div>
+    {% include 'components/search_bar.html' %}
   </div>
   {% if messages %}
   <div>
@@ -38,15 +57,16 @@
   </div>
   {% endif %}
 
-  <div class="card">
+  <div class="custom-table card">
     <table class="table table-hover">
       <thead>
         <tr>
-          <th>Slug</th>
+          <th>Slug <button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
           <th>Description</th>
-          <th>Publish Date</th>
-          <th>Last Fetched Date</th>
-          <th>Gdrive Url</th>
+          <th>Publish Date<button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+          <th>Last Fetched<button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+          <th>GDrive</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -64,9 +84,10 @@
             {% if pkg.google_drive_url %}<a
               href="{{ pkg.google_drive_url }}"
               target="_blank"
-              >Google Drive Folder</a
+              ><i class="bi bi-link-45deg"></i></a
             >{% endif %}
           </td>
+          <td><button class="table-button"><i class="bi bi-pin-angle"></i></button></td>
         </tr>
         {% empty %}
         <tr>
