@@ -174,6 +174,8 @@ class Package(models.Model):
         """ added to support GridFS storage of images and AML files """
         gridfs_images = []
         gridfs_aml = {}
+        gridfs_image_assets = []
+        gridfs_aml_assets = []
 
         try:
             from google.oauth2 import service_account as _sa
@@ -211,6 +213,28 @@ class Package(models.Model):
                                 media = service.files().get_media(fileId=fid).execute()
                             txt = media.decode('utf-8') if isinstance(media, bytes) else media
                             print(f"[FETCH] Downloaded {len(txt)} bytes of AML")
+                            if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                                try:
+                                    from .file_store import store_text
+                                    file_id = store_text(
+                                        name=name,
+                                        text=txt,
+                                        content_type='text/plain; charset=utf-8',
+                                        slug=self.slug,
+                                        asset_type='aml',
+                                        extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                    )
+                                    gridfs_aml[name] = file_id
+                                    gridfs_aml_assets.append({
+                                        'name': name,
+                                        'file_id': file_id,
+                                        'asset_type': 'aml',
+                                        'content_type': 'text/plain; charset=utf-8',
+                                        'source': 'drive',
+                                        'source_id': fid,
+                                    })
+                                except Exception:
+                                    pass
                             if _arch:
                                 try:
                                     parsed = _arch.loads(txt)
@@ -297,8 +321,23 @@ class Package(models.Model):
                             if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
                                 try:
                                     from .file_store import store_text
-                                    file_id = store_text(name=name, text=txt, content_type='text/plain; charset=utf-8')
+                                    file_id = store_text(
+                                        name=name,
+                                        text=txt,
+                                        content_type='text/plain; charset=utf-8',
+                                        slug=self.slug,
+                                        asset_type='aml',
+                                        extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                    )
                                     gridfs_aml[name] = file_id
+                                    gridfs_aml_assets.append({
+                                        'name': name,
+                                        'file_id': file_id,
+                                        'asset_type': 'aml',
+                                        'content_type': 'text/plain; charset=utf-8',
+                                        'source': 'drive',
+                                        'source_id': fid,
+                                    })
                                 except Exception:
                                     pass
                         except Exception:
@@ -324,8 +363,23 @@ class Package(models.Model):
                                 if isinstance(content, str):
                                     content = content.encode('utf-8')
                                 from .file_store import store_bytes
-                                file_id = store_bytes(name=name, content_type=mime or 'application/octet-stream', data=content)
-                                gridfs_images.append({'name': name, 'id': file_id})
+                                file_id = store_bytes(
+                                    name=name,
+                                    content_type=mime or 'application/octet-stream',
+                                    data=content,
+                                    slug=self.slug,
+                                    asset_type='image',
+                                    extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                )
+                                gridfs_images.append({'name': name, 'id': file_id, 'content_type': mime or 'application/octet-stream'})
+                                gridfs_image_assets.append({
+                                    'name': name,
+                                    'file_id': file_id,
+                                    'asset_type': 'image',
+                                    'content_type': mime or 'application/octet-stream',
+                                    'source': 'drive',
+                                    'source_id': fid,
+                                })
                             except Exception:
                                 pass
         except Exception:
@@ -340,6 +394,34 @@ class Package(models.Model):
             images_payload['gridfs'] = gridfs_images
         self.images = images_payload
         
+        fallback_text = self.cached_article_preview or ''
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and not gridfs_aml_assets and fallback_text.strip():
+            try:
+                from .file_store import store_text
+                fallback_name = f"{self.slug}-article.aml"
+                file_id = store_text(
+                    name=fallback_name,
+                    text=fallback_text,
+                    content_type='text/plain; charset=utf-8',
+                    slug=self.slug,
+                    asset_type='aml',
+                    extra_metadata={'source': 'drive', 'generated': 'doc-export'},
+                )
+                gridfs_aml[fallback_name] = file_id
+                gridfs_aml_assets.append({
+                    'name': fallback_name,
+                    'file_id': file_id,
+                    'asset_type': 'aml',
+                    'content_type': 'text/plain; charset=utf-8',
+                    'source': 'drive',
+                    'source_id': None,
+                    'generated': 'doc-export',
+                })
+                if fallback_name not in aml_files:
+                    aml_files[fallback_name] = fallback_text
+            except Exception:
+                pass
+
         """ Store AML data exactly as fetched so subsequent loads match Drive content """
         data_out = aml_files
         if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_aml:
@@ -351,6 +433,17 @@ class Package(models.Model):
         self.processing = False
         self.save()
         print(f"[FETCH] Fetch completed successfully!")
+
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+            try:
+                from .file_store import update_package_asset_index
+                update_package_asset_index(
+                    self.slug,
+                    aml_assets=gridfs_aml_assets,
+                    image_assets=gridfs_image_assets,
+                )
+            except Exception:
+                pass
 
         try:
             PackageVersion.objects.create(
