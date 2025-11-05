@@ -186,32 +186,112 @@ class Package(models.Model):
                 q = f"'{folder_id}' in parents"
                 resp = service.files().list(q=q, fields='files(id,name,mimeType,webViewLink,webContentLink)').execute()
                 items = resp.get('files', [])
+                print(f"[FETCH] Found {len(items)} files in Drive folder")
                 try:
                     import archieml as _arch
-                except Exception:
+                    print(f"[FETCH] ArchieML imported successfully")
+                except Exception as e:
                     _arch = None
+                    print(f"[FETCH] ArchieML import failed: {e}")
                 for it in items:
                     name = it.get('name') or ''
                     mime = it.get('mimeType') or ''
                     fid = it.get('id')
-                    if name.lower().startswith('article') and mime == 'application/vnd.google-apps.document':
+                    print(f"[FETCH] Processing file: {name} (mime: {mime})")
+                    # Check for .aml files FIRST (even if they're Google Docs)
+                    if name.lower().endswith('.aml'):
+                        print(f"[FETCH] Downloading AML file: {name}")
                         try:
-                            exported = service.files().export(fileId=fid, mimeType='text/plain').execute()
-                            article_text = exported.decode('utf-8') if isinstance(exported, bytes) else exported
-                        except Exception:
-                            article_text = ''
-                    elif name.lower().endswith('.aml'):
-                        try:
-                            media = service.files().get_media(fileId=fid).execute()
+                            # If it's a Google Doc, export it; otherwise download directly
+                            if mime == 'application/vnd.google-apps.document':
+                                print(f"[FETCH] Exporting Google Doc as plain text")
+                                media = service.files().export(fileId=fid, mimeType='text/plain').execute()
+                            else:
+                                print(f"[FETCH] Downloading file directly")
+                                media = service.files().get_media(fileId=fid).execute()
                             txt = media.decode('utf-8') if isinstance(media, bytes) else media
+                            print(f"[FETCH] Downloaded {len(txt)} bytes of AML")
                             if _arch:
                                 try:
                                     parsed = _arch.loads(txt)
+                                    # Fix malformed pull quotes from ArchieML parser
+                                    if isinstance(parsed, dict) and 'content' in parsed and isinstance(parsed['content'], list):
+                                        fixed_content = []
+                                        i = 0
+                                        while i < len(parsed['content']):
+                                            block = parsed['content'][i]
+                                            # Check if next block exists
+                                            next_block = parsed['content'][i + 1] if i + 1 < len(parsed['content']) else None
+
+                                            # Detect malformed pull quote split:
+                                            # 1. {"type": "pull", "value": {}}
+                                            # 2. {"value": {"caption": "..."}} (missing type)
+                                            if (isinstance(block, dict) and
+                                                block.get('type') == 'pull' and
+                                                (not block.get('value') or not block['value'].get('caption')) and
+                                                next_block and isinstance(next_block, dict) and
+                                                'type' not in next_block and
+                                                'value' in next_block and
+                                                isinstance(next_block.get('value'), dict) and
+                                                'caption' in next_block['value']):
+                                                # Merge the two objects
+                                                fixed_content.append({
+                                                    'type': 'pull',
+                                                    'value': {
+                                                        'caption': next_block['value']['caption']
+                                                    }
+                                                })
+                                                i += 2  # Skip both blocks
+                                            else:
+                                                fixed_content.append(block)
+                                                i += 1
+                                        parsed['content'] = fixed_content
+                                        print(f"[FETCH] Fixed malformed pull quotes in content")
+
+                                    # Reorder image block fields (alt, url, credit, caption)
+                                    if isinstance(parsed, dict) and 'content' in parsed and isinstance(parsed['content'], list):
+                                        for block in parsed['content']:
+                                            if isinstance(block, dict) and block.get('type') == 'image' and isinstance(block.get('value'), dict):
+                                                image_val = block['value']
+                                                ordered_image = {}
+                                                image_field_order = ['alt', 'url', 'credit', 'caption']
+                                                for key in image_field_order:
+                                                    if key in image_val:
+                                                        ordered_image[key] = image_val[key]
+                                                # Add any remaining fields
+                                                for key in image_val.keys():
+                                                    if key not in ordered_image:
+                                                        ordered_image[key] = image_val[key]
+                                                block['value'] = ordered_image
+
+                                    # Reorder fields to match Kerckhoff format:
+                                    # author, content, then metadata in specific order
+                                    if isinstance(parsed, dict):
+                                        ordered = {}
+                                        # Define exact field order
+                                        field_order = [
+                                            'author', 'content', 'excerpt', 'updated', 'coveralt',
+                                            'coverimg', 'headline', 'authorbio', 'covercred',
+                                            'articleType', 'authoremail', 'authortwitter'
+                                        ]
+                                        # Add fields in specified order
+                                        for key in field_order:
+                                            if key in parsed:
+                                                ordered[key] = parsed[key]
+                                        # Add any remaining fields not in the order list
+                                        for key in parsed.keys():
+                                            if key not in ordered:
+                                                ordered[key] = parsed[key]
+                                        parsed = ordered
+
                                     aml_files[name] = parsed
-                                except Exception:
+                                    print(f"[FETCH] Successfully parsed AML with ArchieML")
+                                except Exception as e:
                                     aml_files[name] = txt
+                                    print(f"[FETCH] ArchieML parsing failed: {e}, storing raw text")
                             else:
                                 aml_files[name] = txt
+                                print(f"[FETCH] No ArchieML, storing raw text")
                             
                             # Optionally persist AML to MongoDB GridFS
                             if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
@@ -223,6 +303,16 @@ class Package(models.Model):
                                     pass
                         except Exception:
                             aml_files[name] = ''
+                    elif name.lower().startswith('article') and mime == 'application/vnd.google-apps.document':
+                        # Article file that is NOT .aml (e.g., just "article" or "Article doc")
+                        print(f"[FETCH] Exporting article Google Doc (not .aml)")
+                        try:
+                            exported = service.files().export(fileId=fid, mimeType='text/plain').execute()
+                            article_text = exported.decode('utf-8') if isinstance(exported, bytes) else exported
+                            print(f"[FETCH] Exported {len(article_text)} bytes of article text")
+                        except Exception as e:
+                            article_text = ''
+                            print(f"[FETCH] Failed to export article: {e}")
                     elif mime.startswith('image'):
                         url = it.get('webContentLink') or it.get('webViewLink') or ''
                         gdrive_images.append({'name': name, 'url': url})
@@ -255,9 +345,12 @@ class Package(models.Model):
         if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_aml:
             data_out['_gridfs_aml'] = gridfs_aml
         self.data = data_out
+        print(f"[FETCH] Saving data to database: {list(data_out.keys())}")
+        print(f"[FETCH] Image count - gdrive: {len(gdrive_images)}, gridfs: {len(gridfs_images)}")
         self.last_fetched_date = dj_tz.now()
         self.processing = False
         self.save()
+        print(f"[FETCH] Fetch completed successfully!")
 
         try:
             PackageVersion.objects.create(
