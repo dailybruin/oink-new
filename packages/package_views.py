@@ -137,37 +137,36 @@ def _parse_aml_plain_text(txt: str) -> dict:
 
 def _parse_plain_text_preview(txt: str) -> str:
     result = ''
-    lines = (txt or '').splitlines()
-    # print(lines)
+    lines = [stripped for stripped in (line.strip() for line in (txt or '').splitlines()) if stripped]
+    print(lines)
     i = 0
     while i < len(lines):
-        line = lines[i].strip()
-        if not line:
-            i += 1
-            continue
-        
-        if line.startswith('Space filler for'):
-            result += f"{line}<br><br>"
-        elif line.startswith('headline'):
-            header = i + 15
+        if lines[i].startswith('headline'):
+            header = i + 11
+            result += "<p>"
             while i < header:
-                line = lines[i].strip()
-                result += f"{line} "
+                result += f"{lines[i].strip()} "
                 i += 1
-            result += "<br><br>"
-            continue
-        elif line == '+[content]':
-            result += f"{line} "  
-        elif line == '{.pull}':
-            pull = i + 3
-            while i < pull:
-                result += lines[i] + " "
+            result += "</p>"
+
+        elif lines[i] == '[+content]':
+            print('CONTENT STARTS HERE')
+            result += f"<p>{lines[i]} {lines[i + 1]}</p>"
+            i += 2
+        
+        elif lines[i].startswith('{'):
+            result += f"<p>{lines[i]} "
+            i += 1
+            while True:
+                result += f"{lines[i]} "
+                if lines[i].startswith('{'):
+                    break
                 i += 1
-            result += "<br><br>"
-            continue
+            result += "</p>"
+            i += 1
         else:
-            result += f"{lines[i]}<br><br>"
-        i += 1
+            result += f"<p>{lines[i]}</p>"
+            i += 1
     return result
 
 def _read_local_sample(slug: str):
