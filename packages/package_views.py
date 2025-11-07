@@ -68,24 +68,41 @@ def package_create(request):
 
 """ This new function will flatten the stored image in google drive into a simple list for templates """
 def _format_images(images_data):
-    
-    """ Convert stored images data into a flat list of images with name and URL for templates """
+
+    """ Convert stored images data into a flat list of images with name and URL for templates.
+    Deduplicates images by filename, prioritizing GridFS URLs over Drive URLs. """
     if not images_data:
         return []
-    formatted = []
+
+    # Build a map by filename to deduplicate
+    images_by_name = {}
+
     if isinstance(images_data, dict):
-        formatted.extend(images_data.get('gdrive', []) or [])
-        # Provide links to GridFS-backed images when available.
+        # First add GridFS images (preferred)
         for item in images_data.get('gridfs', []) or []:
             file_id = item.get('id')
             if file_id:
-                formatted.append({
-                    'name': item.get('name'),
+                name = item.get('name')
+                images_by_name[name] = {
+                    'name': name,
                     'url': f"/files/{file_id}/",
-                })
+                    'source': 'gridfs'
+                }
+
+        # Then add Drive images only if not already in GridFS
+        for item in images_data.get('gdrive', []) or []:
+            name = item.get('name')
+            if name not in images_by_name:
+                images_by_name[name] = {
+                    'name': name,
+                    'url': item.get('url'),
+                    'source': 'gdrive'
+                }
     elif isinstance(images_data, list):
-        formatted = images_data
-    return formatted
+        # If it's already a list, return as-is
+        return images_data
+
+    return list(images_by_name.values())
 
 
 def package_detail(request, slug):

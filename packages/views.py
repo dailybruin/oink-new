@@ -108,14 +108,16 @@ def serve_gridfs_file(request, file_id: str):
         raise Http404("File not found")
 
     """ Memory-efficient file read from GridFS
-    
+
     This will read content
-     
+
     In case for very large files, use StreamingHttpResponse with chunks for better memory usage """
     try:
         data = stream.read()
-        content_type = (stream.file_document.get('metadata', {}) or {}).get('contentType') or 'application/octet-stream'
-        filename = stream.filename or file_id
+        # Access metadata from the stream's _file property before closing
+        metadata = getattr(stream, 'metadata', {}) or {}
+        content_type = metadata.get('contentType') or 'application/octet-stream'
+        filename = getattr(stream, 'filename', None) or file_id
     finally:
         stream.close()
 
