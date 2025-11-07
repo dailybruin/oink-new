@@ -7,6 +7,12 @@ from django.shortcuts import redirect, render
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 
+# Additional imports for serving GridFS files
+from django.http import HttpResponse, Http404
+from bson import ObjectId
+from gridfs.errors import NoFile
+from oink_project.mongo import get_bucket
+
 logger = logging.getLogger(__name__)
 
 def index(request):
@@ -85,3 +91,36 @@ def google_callback(request):
 def signout(request):
     logout(request)
     return redirect('/')
+
+""" Stream a file from GridFS by its ObjectId (which is stored as a string in mongoDB)
+
+    Example URL: /files/<file_id>/ """
+def serve_gridfs_file(request, file_id: str):
+    try:
+        oid = ObjectId(file_id)
+    except Exception:
+        raise Http404("Invalid file id")
+
+    bucket = get_bucket()
+    try:
+        stream = bucket.open_download_stream(oid)
+    except NoFile:
+        raise Http404("File not found")
+
+    """ Memory-efficient file read from GridFS
+    
+    This will read content
+     
+    In case for very large files, use StreamingHttpResponse with chunks for better memory usage """
+    try:
+        data = stream.read()
+        content_type = (stream.file_document.get('metadata', {}) or {}).get('contentType') or 'application/octet-stream'
+        filename = stream.filename or file_id
+    finally:
+        stream.close()
+
+    response = HttpResponse(data, content_type=content_type)
+    
+    """ Inline by default but adjusts if you need attachment """
+    response["Content-Disposition"] = f"inline; filename=\"{filename}\""
+    return response

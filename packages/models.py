@@ -170,6 +170,12 @@ class Package(models.Model):
         article_text = ''
         aml_files = {}
         gdrive_images = []
+        
+        """ added to support GridFS storage of images and AML files """
+        gridfs_images = []
+        gridfs_aml = {}
+        gridfs_image_assets = []
+        gridfs_aml_assets = []
 
         try:
             from google.oauth2 import service_account as _sa
@@ -194,6 +200,38 @@ class Package(models.Model):
                         try:
                             exported = service.files().export(fileId=fid, mimeType='text/plain').execute()
                             article_text = exported.decode('utf-8') if isinstance(exported, bytes) else exported
+                            doc_asset_name = name or 'article.aml'
+                            if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and article_text:
+                                try:
+                                    from .file_store import store_text
+                                    file_id = store_text(
+                                        name=doc_asset_name,
+                                        text=article_text,
+                                        content_type='text/plain; charset=utf-8',
+                                        slug=self.slug,
+                                        asset_type='aml',
+                                        extra_metadata={'sourceId': fid, 'source': 'drive', 'googleType': 'document'},
+                                    )
+                                    gridfs_aml[doc_asset_name] = file_id
+                                    gridfs_aml_assets.append({
+                                        'name': doc_asset_name,
+                                        'file_id': file_id,
+                                        'asset_type': 'aml',
+                                        'content_type': 'text/plain; charset=utf-8',
+                                        'source': 'drive',
+                                        'source_id': fid,
+                                        'google_type': 'document',
+                                    })
+                                except Exception:
+                                    pass
+                            if article_text and article_text.strip() and doc_asset_name not in aml_files:
+                                if _arch:
+                                    try:
+                                        aml_files[doc_asset_name] = _arch.loads(article_text)
+                                    except Exception:
+                                        aml_files[doc_asset_name] = article_text
+                                else:
+                                    aml_files[doc_asset_name] = article_text
                         except Exception:
                             article_text = ''
                     elif name.lower().endswith('.aml'):
@@ -208,21 +246,121 @@ class Package(models.Model):
                                     aml_files[name] = txt
                             else:
                                 aml_files[name] = txt
+                            
+                            # Optionally persist AML to MongoDB GridFS
+                            if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                                try:
+                                    from .file_store import store_text
+                                    file_id = store_text(
+                                        name=name,
+                                        text=txt,
+                                        content_type='text/plain; charset=utf-8',
+                                        slug=self.slug,
+                                        asset_type='aml',
+                                        extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                    )
+                                    gridfs_aml[name] = file_id
+                                    gridfs_aml_assets.append({
+                                        'name': name,
+                                        'file_id': file_id,
+                                        'asset_type': 'aml',
+                                        'content_type': 'text/plain; charset=utf-8',
+                                        'source': 'drive',
+                                        'source_id': fid,
+                                    })
+                                except Exception:
+                                    pass
                         except Exception:
                             aml_files[name] = ''
                     elif mime.startswith('image'):
-                        gdrive_images.append({'name': name, 'url': it.get('webContentLink') or it.get('webViewLink') or ''})
+                        url = it.get('webContentLink') or it.get('webViewLink') or ''
+                        gdrive_images.append({'name': name, 'url': url})
+                        
+                        # Optionally persist image bytes to MongoDB GridFS
+                        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                            try:
+                                content = service.files().get_media(fileId=fid).execute()
+                                if isinstance(content, str):
+                                    content = content.encode('utf-8')
+                                from .file_store import store_bytes
+                                file_id = store_bytes(
+                                    name=name,
+                                    content_type=mime or 'application/octet-stream',
+                                    data=content,
+                                    slug=self.slug,
+                                    asset_type='image',
+                                    extra_metadata={'sourceId': fid, 'source': 'drive'},
+                                )
+                                gridfs_images.append({'name': name, 'id': file_id, 'content_type': mime or 'application/octet-stream'})
+                                gridfs_image_assets.append({
+                                    'name': name,
+                                    'file_id': file_id,
+                                    'asset_type': 'image',
+                                    'content_type': mime or 'application/octet-stream',
+                                    'source': 'drive',
+                                    'source_id': fid,
+                                })
+                            except Exception:
+                                pass
         except Exception:
             pass
 
-        self.cached_article_preview = article_text or self.cached_article_preview
-        existing_images = self.images or {}
-        existing_images['gdrive'] = gdrive_images
-        self.images = existing_images
-        self.data = aml_files or self.data
+        """ Replace cached fields with the freshly fetched content,
+        
+        just in case if we want to edit the .aml and images later """
+        self.cached_article_preview = article_text
+        images_payload = {'gdrive': gdrive_images}
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_images:
+            images_payload['gridfs'] = gridfs_images
+        self.images = images_payload
+        
+        fallback_text = self.cached_article_preview or ''
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and not gridfs_aml_assets and fallback_text.strip():
+            try:
+                from .file_store import store_text
+                fallback_name = f"{self.slug}-article.aml"
+                file_id = store_text(
+                    name=fallback_name,
+                    text=fallback_text,
+                    content_type='text/plain; charset=utf-8',
+                    slug=self.slug,
+                    asset_type='aml',
+                    extra_metadata={'source': 'drive', 'generated': 'doc-export'},
+                )
+                gridfs_aml[fallback_name] = file_id
+                gridfs_aml_assets.append({
+                    'name': fallback_name,
+                    'file_id': file_id,
+                    'asset_type': 'aml',
+                    'content_type': 'text/plain; charset=utf-8',
+                    'source': 'drive',
+                    'source_id': None,
+                    'generated': 'doc-export',
+                })
+                if fallback_name not in aml_files:
+                    aml_files[fallback_name] = fallback_text
+            except Exception:
+                pass
+
+        """ Store AML data exactly as fetched so subsequent loads match Drive content """
+        data_out = aml_files
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and gridfs_aml:
+            data_out['_gridfs_aml'] = gridfs_aml
+        self.data = data_out
         self.last_fetched_date = dj_tz.now()
         self.processing = False
         self.save()
+
+        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+            try:
+                from .file_store import update_package_asset_index
+                update_package_asset_index(
+                    self.slug,
+                    aml_assets=gridfs_aml_assets,
+                    image_assets=gridfs_image_assets,
+                )
+            except Exception:
+                pass
 
         try:
             PackageVersion.objects.create(
