@@ -212,7 +212,7 @@ def package_fetch(request, slug):
                     except Exception:
                         aml_files[name] = ''
                 elif mime and mime.startswith('image'):
-                    images.append({'name': name, 'url': it.get('webContentLink') or it.get('webViewLink') or ''})
+                    images.append({'name': name, 'url': f'/packages/{slug}/image/{fid}/'})
 
             return JsonResponse({'slug': pkg.slug, 'article': article_text, 'aml_files': aml_files, 'data': aml_files, 'images': images})
         except Exception:
@@ -223,3 +223,30 @@ def package_fetch(request, slug):
         return JsonResponse({'slug': pkg.slug, 'article': sample['article'], 'aml_files': sample['aml_files'], 'data': sample['aml_files'], 'images': sample['images']})
 
     return JsonResponse({'error': 'Unable to fetch package content from Drive and no local sample available.'}, status=500)
+
+def package_image(request, slug, file_id):
+      try:
+          pkg = Package.objects.get(slug=slug)
+      except Package.DoesNotExist:
+          return HttpResponseNotFound('Package not found')
+
+      sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
+      if not sa_file or not service_account or not build:
+          return HttpResponseNotFound('Google Drive not configured')
+
+      try:
+          scopes = ['https://www.googleapis.com/auth/drive']
+          creds = service_account.Credentials.from_service_account_file(sa_file, scopes=scopes)
+          service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+
+          file_metadata = service.files().get(fileId=file_id, fields='mimeType,name').execute()
+          mime_type = file_metadata.get('mimeType', 'image/jpeg')
+
+          media = service.files().get_media(fileId=file_id).execute()
+
+          from django.http import HttpResponse
+          return HttpResponse(media, content_type=mime_type)
+
+      except Exception:
+          logging.getLogger(__name__).exception('Failed to fetch image %s for package %s', file_id, slug)
+          return HttpResponseNotFound('Image not found')
