@@ -3,7 +3,7 @@ services:
   web:
     build: .
     ports:
-      - "5000:8000"
+      - "5001:8000"
     environment:
       - DJANGO_DEBUG=1
     volumes:

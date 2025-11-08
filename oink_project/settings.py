@@ -99,6 +99,13 @@ GOOGLE_SHARE_DOMAIN = os.getenv('GOOGLE_SHARE_DOMAIN', '')
 REPOSITORY_FOLDER_ID = os.getenv('REPOSITORY_FOLDER_ID', '')
 GOOGLE_DRIVE_ROOT = os.getenv('GOOGLE_DRIVE_ROOT', 'https://drive.google.com/drive/folders')
 
+# MongoDB / GridFS configuration (for file storage)
+MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
+MONGODB_DB_NAME = os.getenv('MONGODB_DB_NAME', 'oink')
+MONGODB_BUCKET = os.getenv('MONGODB_BUCKET', 'files')
+MONGODB_FILESTORE_ENABLED = os.getenv('MONGODB_FILESTORE_ENABLED', '0') == '1'
+MONGODB_ASSET_COLLECTION = os.getenv('MONGODB_ASSET_COLLECTION', 'package_assets')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

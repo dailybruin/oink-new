@@ -11,4 +11,7 @@ urlpatterns = [
     path('packages/new/', package_views.package_create, name='package_create'),
     path('packages/<slug:slug>/', package_views.package_detail, name='package_detail'),
     path('packages/<slug:slug>/fetch/', package_views.package_fetch, name='package_fetch'),
+    
+    # Serve files connected and stored in MongoDB GridFS
+    path('files/<str:file_id>/', views.serve_gridfs_file, name='serve_gridfs_file'),
 ]
