@@ -15,4 +15,4 @@ RUN chmod +x /app/entrypoint.sh
 RUN python manage.py collectstatic --noinput || true
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["gunicorn", "oink_project.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "oink_project.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1"]

@@ -29,7 +29,13 @@
 
 <script>
   document.getElementById("fetch-btn").addEventListener("click", function () {
+    const btn = this;
     const slug = "{{ package.slug }}";
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = "Fetching...";
+
     fetch(`/packages/${slug}/fetch/`)
       .then((r) => r.json())
       .then((data) => {
@@ -88,9 +94,14 @@
           li.appendChild(a);
           imagesList.appendChild(li);
         });
+
+        btn.textContent = originalText;
+        btn.disabled = false;
       })
       .catch((err) => {
         alert("Fetch failed: " + err);
+        btn.textContent = originalText + " (retry)";
+        btn.disabled = false;
       });
   });
 </script>

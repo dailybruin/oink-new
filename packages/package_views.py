@@ -66,6 +66,44 @@ def packages_list(request):
 def package_create(request):
     return redirect('packages_list')
 
+""" This new function will flatten the stored image in google drive into a simple list for templates """
+def _format_images(images_data):
+
+    """ Convert stored images data into a flat list of images with name and URL for templates.
+    Deduplicates images by filename, prioritizing GridFS URLs over Drive URLs. """
+    if not images_data:
+        return []
+
+    # Build a map by filename to deduplicate
+    images_by_name = {}
+
+    if isinstance(images_data, dict):
+        # First add GridFS images (preferred)
+        for item in images_data.get('gridfs', []) or []:
+            file_id = item.get('id')
+            if file_id:
+                name = item.get('name')
+                images_by_name[name] = {
+                    'name': name,
+                    'url': f"/files/{file_id}/",
+                    'source': 'gridfs'
+                }
+
+        # Then add Drive images only if not already in GridFS
+        for item in images_data.get('gdrive', []) or []:
+            name = item.get('name')
+            if name not in images_by_name:
+                images_by_name[name] = {
+                    'name': name,
+                    'url': item.get('url'),
+                    'source': 'gdrive'
+                }
+    elif isinstance(images_data, list):
+        # If it's already a list, return as-is
+        return images_data
+
+    return list(images_by_name.values())
+
 
 def package_detail(request, slug):
     try:
@@ -73,8 +111,22 @@ def package_detail(request, slug):
     except Package.DoesNotExist:
         return HttpResponseNotFound('Package not found')
 
+    """ This part below will persist the cached data for the template to use directly
+        
+    Send the cached data so the template can preload without extra fetches 
+    
+    Also check the package_fetch function below to get the idea """
+    initial_payload = {
+        'slug': pkg.slug,
+        'article': pkg.cached_article_preview or '',
+        'aml_files': pkg.data or {},
+        'data': pkg.data or {},
+        'images': _format_images(pkg.images),
+    }
+
     return render(request, 'packages/package_view.html', {
         'package': pkg,
+        'initial_payload': initial_payload, # initial_payload will check for cached fields in the slug
     })
 
 

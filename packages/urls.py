@@ -12,4 +12,7 @@ urlpatterns = [
     path('packages/<slug:slug>/', package_views.package_detail, name='package_detail'),
     path('packages/<slug:slug>/fetch/', package_views.package_fetch, name='package_fetch'),
     path('packages/<slug:slug>/image/<str:file_id>/', package_views.package_image, name='package_image'),
+    
+    # Serve files connected and stored in MongoDB GridFS
+    path('files/<str:file_id>/', views.serve_gridfs_file, name='serve_gridfs_file'),
 ]

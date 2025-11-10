@@ -1,3 +1,4 @@
 .env
 keys/
+app/keys/.claude.local
 app/keys/
