@@ -211,7 +211,7 @@ class Package(models.Model):
                         except Exception:
                             aml_files[name] = ''
                     elif mime.startswith('image'):
-                        gdrive_images.append({'name': name, 'url': it.get('webContentLink') or it.get('webViewLink') or ''})
+                        gdrive_images.append({'name': name, 'url': f'/packages/{self.slug}/image/{fid}/'})
         except Exception:
             pass
 
