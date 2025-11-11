@@ -353,8 +353,7 @@ class Package(models.Model):
                             article_text = ''
                             print(f"[FETCH] Failed to export article: {e}")
                     elif mime.startswith('image'):
-                        url = it.get('webContentLink') or it.get('webViewLink') or ''
-                        gdrive_images.append({'name': name, 'url': url})
+                        gdrive_images.append({'name': name, 'url': f'/packages/{self.slug}/image/{fid}/'})
                         
                         # Optionally persist image bytes to MongoDB GridFS
                         if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):

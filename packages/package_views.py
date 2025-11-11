@@ -187,6 +187,40 @@ def _parse_aml_plain_text(txt: str) -> dict:
         i += 1
     return {'article.aml': result}
 
+def _parse_plain_text_preview(txt: str) -> str:
+    result = ''
+    lines = [stripped for stripped in (line.strip() for line in (txt or '').splitlines()) if stripped]
+    print(lines)
+    i = 0
+    while i < len(lines):
+        if lines[i].startswith('headline'):
+            header = i + 11
+            result += "<p>"
+            while i < header:
+                result += f"{lines[i].strip()} "
+                i += 1
+            result += "</p>"
+
+        elif lines[i] == '[+content]':
+            print('CONTENT STARTS HERE')
+            result += f"<p>{lines[i]} {lines[i + 1]}</p>"
+            i += 2
+        
+        elif lines[i].startswith('{'):
+            result += f"<p>{lines[i]} "
+            i += 1
+            while True:
+                result += f"{lines[i]} "
+                if lines[i].startswith('{'):
+                    break
+                i += 1
+            result += "</p>"
+            i += 1
+        else:
+            result += f"<p>{lines[i]}</p>"
+            i += 1
+    return result
+
 def _read_local_sample(slug: str):
     base = os.path.join(os.path.dirname(__file__), 'sample_data', slug)
     article_path = os.path.join(base, 'article.aml')
@@ -211,27 +245,95 @@ def package_fetch(request, slug):
         pkg = Package.objects.get(slug=slug)
     except Package.DoesNotExist:
         return JsonResponse({'error': 'Package not found'}, status=404)
-    
-    """ Pull the latest files from Drive, so the model persists the results for reuse """
-    try:
-        pkg.fetch_from_gdrive(request.user)
-        pkg.refresh_from_db()
-    except Exception:
-        sample = _read_local_sample(slug)
-        if sample['article']:
-            return JsonResponse({
-                'slug': pkg.slug,
-                'article': sample['article'],
-                'aml_files': sample['aml_files'],
-                'data': sample['aml_files'],
-                'images': sample['images'],
-            })
-        return JsonResponse({'error': 'Unable to fetch package content.'}, status=500)
 
-    return JsonResponse({
-        'slug': pkg.slug,
-        'article': pkg.cached_article_preview or '',
-        'aml_files': pkg.data or {},
-        'data': pkg.data or {},
-        'images': _format_images(pkg.images),
-    })
+    folder_id = pkg.google_drive_id or (pkg.google_drive_url or '').rstrip('/').split('/')[-1]
+
+    sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
+    if sa_file and service_account and build:
+        try:
+            scopes = ['https://www.googleapis.com/auth/drive']
+            creds = service_account.Credentials.from_service_account_file(sa_file, scopes=scopes)
+            service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+
+            q = f"'{folder_id}' in parents"
+            resp = service.files().list(q=q, fields='files(id,name,mimeType,webViewLink,webContentLink)').execute()
+            items = resp.get('files', [])
+
+            article_text = ''
+            aml_files = {}
+            images = []
+
+            for it in items:
+                name = it.get('name')
+                mime = it.get('mimeType')
+                fid = it.get('id')
+                if name and name.lower().startswith('article') and mime == 'application/vnd.google-apps.document':
+                    try:
+                        exported_txt = service.files().export(fileId=fid, mimeType='text/plain').execute()
+                        plain = exported_txt.decode('utf-8') if isinstance(exported_txt, bytes) else exported_txt
+                        # article_text = plain
+                        parsed = None
+                        if archieml:
+                            try:
+                                parsed = archieml.loads(plain)
+                            except Exception:
+                                parsed = None
+                        if not parsed or not isinstance(parsed, dict) or 'content' not in parsed:
+                            parsed = _parse_aml_plain_text(plain).get('article.aml')
+                        aml_files['article.aml'] = parsed
+                        article_text = _parse_plain_text_preview(plain)
+                    except Exception:
+                        article_text = ''
+                elif name and name.lower().endswith('.aml'):
+                    try:
+                        media = service.files().get_media(fileId=fid).execute()
+                        txt = media.decode('utf-8') if isinstance(media, bytes) else media
+                        if archieml:
+                            try:
+                                parsed = archieml.loads(txt)
+                                aml_files[name] = parsed
+                            except Exception:
+                                aml_files[name] = txt
+                        else:
+                            aml_files[name] = txt
+                    except Exception:
+                        aml_files[name] = ''
+                elif mime and mime.startswith('image'):
+                    images.append({'name': name, 'url': f'/packages/{slug}/image/{fid}/'})
+
+            return JsonResponse({'slug': pkg.slug, 'article': article_text, 'aml_files': aml_files, 'data': aml_files, 'images': images})
+        except Exception:
+            pass
+
+    sample = _read_local_sample(slug)
+    if sample['article']:
+        return JsonResponse({'slug': pkg.slug, 'article': sample['article'], 'aml_files': sample['aml_files'], 'data': sample['aml_files'], 'images': sample['images']})
+
+    return JsonResponse({'error': 'Unable to fetch package content from Drive and no local sample available.'}, status=500)
+
+def package_image(request, slug, file_id):
+      try:
+          pkg = Package.objects.get(slug=slug)
+      except Package.DoesNotExist:
+          return HttpResponseNotFound('Package not found')
+
+      sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
+      if not sa_file or not service_account or not build:
+          return HttpResponseNotFound('Google Drive not configured')
+
+      try:
+          scopes = ['https://www.googleapis.com/auth/drive']
+          creds = service_account.Credentials.from_service_account_file(sa_file, scopes=scopes)
+          service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+
+          file_metadata = service.files().get(fileId=file_id, fields='mimeType,name').execute()
+          mime_type = file_metadata.get('mimeType', 'image/jpeg')
+
+          media = service.files().get_media(fileId=file_id).execute()
+
+          from django.http import HttpResponse
+          return HttpResponse(media, content_type=mime_type)
+
+      except Exception:
+          logging.getLogger(__name__).exception('Failed to fetch image %s for package %s', file_id, slug)
+          return HttpResponseNotFound('Image not found')
