@@ -2,4 +2,3 @@
 keys/
 app/keys/.claude.local
 app/keys/
-db.sqlite3
