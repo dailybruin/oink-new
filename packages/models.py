@@ -5,6 +5,8 @@ from . import drive
 import re
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.validators import RegexValidator
+
 
 
 class GoogleCredential(models.Model):
@@ -471,3 +473,14 @@ class PackageVersion(models.Model):
 
     def __str__(self):
         return f"Version {self.pk} of {self.package.slug}"
+    
+
+       # reformat for slug
+    def clean(self):
+       if self.slug:
+           s = self.slug.strip().lower()
+           s = s.replace(' ', '-')                 # spaces → hyphen
+           s = re.sub(r'[^a-z0-9.-]', '', s)       # drop anything not alnum/dot/hyphen
+           s = re.sub(r'[.-]{2,}', '-', s)         # collapse runs of . or - to single -
+           s = s.strip('.-')                       # no leading/trailing separators
+           self.slug = s
