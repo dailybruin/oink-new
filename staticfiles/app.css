@@ -1,15 +1,225 @@
+@import url('https://fonts.googleapis.com/css2?family=Darumadrop+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --background-color: #FFFBF7;
+  --primary-color: #E06150;
+  --primary-hover-color: #C05448;
+  --secondary-color: #C05448;
+  --text-dark: #120008;
+}
+
 /* Main application styles — contributors should edit this under src/static/css */
 body {
-  margin: 20px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial;
-  background-color: #FFFBF7;
+  background-color: var(--background-color);
 }
+
 .card {
-  padding: 20px;
-  background-color:#FFFBF7;
+  padding: 2rem;
+  background: none;
+  --bs-card-border-color: none;
 }
-.btn-brand {
-  background: #0d6efd;
-  color: #fff;
+
+/* === Navbar === */
+.navbar {
+    padding: 0;
+}
+
+.navbar .container-fluid{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #E06150;
+    min-height: 4rem;
+    padding: 0 3rem;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    font-family: "Darumadrop One", sans-serif;
+    font-size: 3rem;
+    font-weight: 400;
+}
+
+.navbar-brand, .nav-link {
+   color: #FFF7FD;
+}
+
+.nav-link{
+    font-size: 1rem;
+}
+
+.navbar-nav{
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+}
+
+.custom-navbar .nav-link:hover, 
+.custom-navbar .nav-link:focus,
+.custom-navbar .navbar-brand:hover,
+.custom-navbar .navbar-brand:focus {
+  color: #FFF7FD;
+}
+
+/* === Package list header buttons === */
+.btn {
+    transition: transform 1s ease-in-out;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;    
+    font-weight: 700;
+}
+
+.btn-primary {
+    border-radius: 16px;
+    margin-right: 0.75rem;
+    min-width: 12rem;
+}
+
+.pkg-lst .btn-secondary {
+    border-radius: 12px;
+    min-width: 4rem;
+    padding: 0;
+}
+
+.btn-primary:hover, .btn-secondary:hover{
+    background-color: var(--primary-hover-color);
+    border-color: #C05448;
+}
+
+.btn-primary:active, .btn-secondary:active {
+    --bs-btn-active-bg: var(--secondary-color);
+    --bs-btn-active-border-color: var(--secondary-color);
+}
+
+.icon-large {
+    font-size: 1.5rem;
+}
+
+/* === Search bar === */
+.search-container {
+    position: relative;
+}
+
+.search-container .form-control {
+    border: 1px solid var(--text-dark);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 3rem;
+    font-family: "Inter", sans-serif;
+    background-color: var(--background-color);
+
+}
+
+.search-icon {
+    position: absolute;
+    top: 50%;
+    left: 1rem;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+    font-size: 1.1rem;
+}
+
+/* === Paginator === */
+.page-item.disabled {
+    --bs-pagination-disabled-bg: transparent;
+}
+
+.page-link {
+    border: none;
+    font-family: "Inter", sans-serif;
+    font-weight: 400;
+    color: var(--text-dark);
+    --bs-pagination-active-color: var(--text-dark);
+    --bs-pagination-active-bg: transparent;
+    --bs-pagination-active-border-color: transparent;
+}
+
+.page-link.active {
+    font-weight: 700;
+}
+
+.page-link:active {
+    outline: none;
+    box-shadow: none;
+    background-color: transparent;
+}
+
+.page-link:focus {
+    background-color: transparent;
+}
+
+.page-link:hover {
+    color: var(--text-dark);
+}
+
+/* === Table === */
+.custom-table.card {
+    --bs-card-border-color: none;
+    padding: 1rem 0;
+}
+
+.table.table-hover {
+    font-family: "Inter", sans-serif;
+    --bs-table-border-color: var(--background-color);
+}
+
+.table.table-hover th {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.table.table-hover td {
+    color: #120008;
+    vertical-align: middle;
+}
+
+.table.table-hover a {
+    font-weight: 700;
+    color: #FB9D96;
+    text-decoration: none;
+}
+
+.table-button {
+    background-color: transparent;
+    border: none;
+}
+
+.bi.bi-chevron-down {
+    color: var(--primary-color);
+}
+
+.bi.bi-link-45deg {
+    font-size: 2rem;
+}
+
+.bi.bi-pin-angle {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+}
+
+.table > :not(caption) > * > * {
+  background-color: var(--background-color);
+}
+
+/* Modal */
+
+#newPackageModal .modal {
+    --bs-modal-header-border-width: 0;
+    --bs-modal-footer-border-width: 0;
+}
+
+#newPackageModal .modal-title {
+    font-family: "Darumadrop One", Times, serif;
+    font-size: 38px;
+    font-weight: 400;
+    color: #591A0E
+}
+
+#newPackageModal .modal-content {
+    background-color: #FFFBF7; 
 }
