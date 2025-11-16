@@ -265,64 +265,20 @@ def package_fetch(request, slug):
     except Package.DoesNotExist:
         return JsonResponse({'error': 'Package not found'}, status=404)
 
-    folder_id = pkg.google_drive_id or (pkg.google_drive_url or '').rstrip('/').split('/')[-1]
-
-    sa_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
-    if sa_file and service_account and build:
-        try:
-            scopes = ['https://www.googleapis.com/auth/drive']
-            creds = service_account.Credentials.from_service_account_file(sa_file, scopes=scopes)
-            service = build('drive', 'v3', credentials=creds, cache_discovery=False)
-
-            q = f"'{folder_id}' in parents"
-            resp = service.files().list(q=q, fields='files(id,name,mimeType,webViewLink,webContentLink)').execute()
-            items = resp.get('files', [])
-
-            article_text = ''
-            aml_files = {}
-            images = []
-
-            for it in items:
-                name = it.get('name')
-                mime = it.get('mimeType')
-                fid = it.get('id')
-                if name and name.lower().startswith('article') and mime == 'application/vnd.google-apps.document':
-                    try:
-                        exported_txt = service.files().export(fileId=fid, mimeType='text/plain').execute()
-                        plain = exported_txt.decode('utf-8') if isinstance(exported_txt, bytes) else exported_txt
-                        # article_text = plain
-                        parsed = None
-                        if archieml:
-                            try:
-                                parsed = archieml.loads(plain)
-                            except Exception:
-                                parsed = None
-                        if not parsed or not isinstance(parsed, dict) or 'content' not in parsed:
-                            parsed = _parse_aml_plain_text(plain).get('article.aml')
-                        aml_files['article.aml'] = parsed
-                        article_text = _parse_plain_text_preview(plain)
-                    except Exception:
-                        article_text = ''
-                elif name and name.lower().endswith('.aml'):
-                    try:
-                        media = service.files().get_media(fileId=fid).execute()
-                        txt = media.decode('utf-8') if isinstance(media, bytes) else media
-                        if archieml:
-                            try:
-                                parsed = archieml.loads(txt)
-                                aml_files[name] = parsed
-                            except Exception:
-                                aml_files[name] = txt
-                        else:
-                            aml_files[name] = txt
-                    except Exception:
-                        aml_files[name] = ''
-                elif mime and mime.startswith('image'):
-                    images.append({'name': name, 'url': f'/packages/{slug}/image/{fid}/'})
-
-            return JsonResponse({'slug': pkg.slug, 'article': article_text, 'aml_files': aml_files, 'data': aml_files, 'images': images})
-        except Exception:
-            pass
+    # Persist fetched data in the database so it survives refresh/reopen
+    try:
+        pkg.fetch_from_gdrive(request.user)
+        pkg.refresh_from_db()  # ensure we respond with the latest persisted state
+        return JsonResponse({
+            'slug': pkg.slug,
+            'article': pkg.cached_article_preview or '',
+            'aml_files': pkg.data or {},
+            'data': pkg.data or {},
+            'images': _format_images(pkg.images),
+            'last_fetched_date': pkg.last_fetched_date,
+        })
+    except Exception:
+        logging.getLogger(__name__).exception('Failed to persist Drive fetch for %s', slug)
 
     sample = _read_local_sample(slug)
     if sample['article']:
