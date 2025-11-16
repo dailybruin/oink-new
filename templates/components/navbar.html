@@ -1,0 +1,13 @@
+<nav class="custom-navbar navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Oink!</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'packages_list' %}?category=prime">Prime</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'packages_list' %}?category=flatpages">Flatpages</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+

@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from .models import Package
 from .forms import PackageForm
 from django.conf import settings
@@ -29,6 +30,8 @@ def packages_list(request):
     else:
         packages = Package.objects.all()
 
+    page_obj, visible_page_range = paginate_package_list(request, packages)
+
     form = PackageForm()
     if request.method == 'POST':
         form = PackageForm(request.POST)
@@ -55,12 +58,25 @@ def packages_list(request):
     ]
 
     return render(request, 'packages/packages_list.html', {
-        'packages': packages,
+        'packages': page_obj,
+        'visible_page_range': visible_page_range,
         'form': form,
         'categories': categories,
         'active_category': category or '',
     })
 
+def paginate_package_list(request, queryset, items_per_page=10, pages_in_block=3):
+    paginator = Paginator(queryset, items_per_page)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    start_page = page_obj.number
+    end_page = min(paginator.num_pages, start_page + pages_in_block - 1)
+    if end_page == paginator.num_pages:
+        start_page = max(1, end_page - pages_in_block + 1)
+
+    visible_page_range = list(range(start_page, end_page + 1))
+    return page_obj, visible_page_range
 
 @login_required
 def package_create(request):
