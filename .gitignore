@@ -1,5 +1,6 @@
 .env
 keys/
+app/keys/
 app/keys/.claude.local
 app/keys/
 *venv/

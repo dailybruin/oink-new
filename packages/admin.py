@@ -3,7 +3,6 @@ from .models import Package
 from django.contrib import messages
 from . import drive
 
-
 @admin.register(Package)
 class PackageAdmin(admin.ModelAdmin):
     list_display = ('slug', 'category', 'publish_date', 'last_fetched_date', 'google_drive_url')
