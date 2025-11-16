@@ -49,6 +49,9 @@ def packages_list(request):
             except Exception:
                 logging.getLogger(__name__).exception('setup_and_save failed for %s', pkg.slug)
 
+            # Redirect to the category of the newly created package
+            if pkg.category:
+                return redirect(f'/packages/?category={pkg.category}')
             return redirect('packages_list')
 
     categories = [
