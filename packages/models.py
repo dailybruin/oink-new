@@ -5,6 +5,7 @@ from . import drive
 import re
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.validators import RegexValidator
 
 
 class GoogleCredential(models.Model):
@@ -37,7 +38,13 @@ class Package(models.Model):
         (CATEGORY_ALUMNI, 'Alumni'),
     ]
 
-    slug = models.SlugField(max_length=255, unique=True, help_text='The article slug (e.g. sports.mbb.oregon)')
+   
+
+    slug = models.CharField(
+    max_length=255,
+    unique=True,
+    help_text='HELP', )
+
     description = models.TextField(blank=True)
     google_drive_url = models.URLField(blank=True, help_text="(Optional) Link to the Google Drive folder. We'll generate one if left blank.")
     google_drive_id = models.CharField(max_length=128, blank=True)
@@ -456,6 +463,14 @@ class Package(models.Model):
             pass
 
         return self
+    
+    def clean(self):
+       super().clean()
+       if self.slug:
+           s = self.slug.strip()        # trim whitespace at ends
+           s = s.replace(' ', '-')      # spaces → hyphens
+           # keep literally ALL other characters
+           self.slug = s
 
 
 class PackageVersion(models.Model):
