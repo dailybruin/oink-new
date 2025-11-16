@@ -2,3 +2,5 @@
 keys/
 app/keys/.claude.local
 app/keys/
+*venv/
+db.sqlite3
