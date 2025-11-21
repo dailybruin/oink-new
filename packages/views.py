@@ -6,6 +6,7 @@ from django.conf import settings
 from django.shortcuts import redirect, render
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 
 # Additional imports for serving GridFS files
 from django.http import HttpResponse, Http404
@@ -95,6 +96,7 @@ def signout(request):
 """ Stream a file from GridFS by its ObjectId (which is stored as a string in mongoDB)
 
     Example URL: /files/<file_id>/ """
+@login_required
 def serve_gridfs_file(request, file_id: str):
     try:
         oid = ObjectId(file_id)

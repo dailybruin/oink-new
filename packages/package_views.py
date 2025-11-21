@@ -23,6 +23,7 @@ except Exception:
     HttpError = Exception
 
 
+@login_required
 def packages_list(request):
     category = request.GET.get('category')
     if category:
@@ -124,6 +125,7 @@ def _format_images(images_data):
     return list(images_by_name.values())
 
 
+@login_required
 def package_detail(request, slug):
     try:
         pkg = Package.objects.get(slug=slug)
@@ -259,6 +261,7 @@ def _read_local_sample(slug: str):
     return result
 
 
+@login_required
 def package_fetch(request, slug):
     try:
         pkg = Package.objects.get(slug=slug)
@@ -286,6 +289,7 @@ def package_fetch(request, slug):
 
     return JsonResponse({'error': 'Unable to fetch package content from Drive and no local sample available.'}, status=500)
 
+@login_required
 def package_image(request, slug, file_id):
       try:
           pkg = Package.objects.get(slug=slug)

@@ -90,6 +90,10 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Authentication settings
+LOGIN_URL = '/google/login/'
+LOGIN_REDIRECT_URL = '/'
+
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
 EMAIL_DOMAIN = os.getenv('EMAIL_DOMAIN', 'media.ucla.edu')
