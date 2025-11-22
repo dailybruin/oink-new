@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Q
+from django.utils.http import urlencode
 from .models import Package
 from .forms import PackageForm
 from django.conf import settings
@@ -21,6 +23,64 @@ except Exception:
     service_account = None
     build = None
     HttpError = Exception
+
+
+@login_required
+def search_packages(request):
+    """Search view that handles search queries and displays results."""
+    query = request.GET.get('q', '').strip()
+    logger = logging.getLogger(__name__)
+    
+    try:
+        if query:
+            packages = Package.objects.filter(
+                Q(slug__icontains=query) | Q(description__icontains=query)
+            )
+        else:
+            packages = Package.objects.all()
+        
+        page_obj, visible_page_range = paginate_package_list(request, packages)
+    except Exception as e:
+        logger.exception('Error during search: %s', e)
+        messages.error(request, 'An error occurred while searching. Please try again.')
+        packages = Package.objects.none()
+        page_obj, visible_page_range = paginate_package_list(request, packages)
+    
+    form = PackageForm()
+    if request.method == 'POST':
+        form = PackageForm(request.POST)
+        logger = logging.getLogger(__name__)
+        valid = form.is_valid()
+        logger.info('Package form submitted, valid=%s', valid)
+        if not valid:
+            logger.warning('Package form errors: %s', form.errors.as_json())
+        if valid:
+            pkg = form.save()
+            logger.info('Package saved via form: %s (id=%s)', pkg.slug, pkg.pk)
+            messages.success(request, f'Package {pkg.slug} created')
+            try:
+                pkg.setup_and_save(request.user, '')
+            except Exception:
+                logging.getLogger(__name__).exception('setup_and_save failed for %s', pkg.slug)
+            
+            if query:
+                return redirect(f'/search/?{urlencode({"q": query})}')
+            return redirect('search_packages')
+    
+    categories = [
+        (Package.CATEGORY_PRIME, 'prime'),
+        (Package.CATEGORY_FLATPAGES, 'flatpages'),
+        (Package.CATEGORY_ALUMNI, 'alumni-site'),
+    ]
+    
+    return render(request, 'packages/packages_list.html', {
+        'packages': page_obj,
+        'visible_page_range': visible_page_range,
+        'form': form,
+        'categories': categories,
+        'active_category': '',
+        'search_query': query,
+    })
 
 
 @login_required
@@ -67,6 +127,7 @@ def packages_list(request):
         'form': form,
         'categories': categories,
         'active_category': category or '',
+        'search_query': '',  
     })
 
 def paginate_package_list(request, queryset, items_per_page=10, pages_in_block=3):

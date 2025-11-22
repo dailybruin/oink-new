@@ -85,7 +85,13 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="5">No packages found.</td>
+          <td colspan="6">
+            {% if search_query %}
+              No packages found matching "{{ search_query }}".
+            {% else %}
+              No packages found.
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

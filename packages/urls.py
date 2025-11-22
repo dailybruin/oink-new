@@ -7,6 +7,7 @@ urlpatterns = [
     path('google/login/', views.google_login, name='google_login'),
     path('google/callback/', views.google_callback, name='google_callback'),
     path('signout/', views.signout, name='signout'),
+    path('search/', package_views.search_packages, name='search_packages'),
     path('packages/', package_views.packages_list, name='packages_list'),
     path('packages/new/', package_views.package_create, name='package_create'),
     path('packages/<str:slug>/', package_views.package_detail, name='package_detail'),
