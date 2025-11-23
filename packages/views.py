@@ -7,6 +7,7 @@ from django.shortcuts import redirect, render
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
+from .models import Package
 
 # Additional imports for serving GridFS files
 from django.http import HttpResponse, Http404
@@ -18,6 +19,25 @@ logger = logging.getLogger(__name__)
 
 def index(request):
     user = request.user if request.user.is_authenticated else None
+    
+    if user and user.is_authenticated:
+        # Get pinned packages (most recently fetched, limit to 3)
+        pinned_packages = Package.objects.filter(
+            last_fetched_date__isnull=False
+        ).order_by('-last_fetched_date')[:3]
+        
+        # Get recent packages (by publish date, limit to 3)
+        recent_packages = Package.objects.filter(
+            publish_date__isnull=False
+        ).order_by('-publish_date')[:3]
+        
+        return render(request, 'packages/index.html', {
+            'user': user,
+            'pinned_packages': pinned_packages,
+            'recent_packages': recent_packages
+        })
+    
+    # Not authenticated - show login page
     return render(request, 'packages/index.html', {'user': user})
 
 def google_login(request):

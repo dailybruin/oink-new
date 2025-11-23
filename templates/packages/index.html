@@ -1,14 +1,102 @@
-{% extends 'packages/base.html' %} {% block content %}
-<h1>oink</h1>
+{% extends 'packages/base.html' %}
+{% load static %}
+{% block content %}
 {% if user %}
-<p>Signed in as {{ user.email }} ({{ user.username }})</p>
-<p><a class="button" href="/signout/">Sign out</a></p>
-<p><a class="button" href="{% url 'packages_list' %}">Manage Packages</a></p>
-{% else %}
-<p>You must sign in with your Daily Bruin (media.ucla.edu) Google account.</p>
-<p><a class="button" href="/google/login/">Sign in with Google</a></p>
-{% endif %}
+<div class="home-dashboard">
+  <div class="dashboard-card">
+    <!-- Pinned Section -->
+    <div class="dashboard-section">
+      <h2 class="section-title">Pinned</h2>
+      <div class="custom-table">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Slug <button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+              <th>Description</th>
+              <th>Publish Date<button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+              <th>Last Fetched<button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+              <th>GDrive</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pkg in pinned_packages %}
+            <tr>
+              <td>
+                <a href="{% url 'package_detail' slug=pkg.slug %}">{{ pkg.slug }}</a>
+              </td>
+              <td>{{ pkg.description|default_if_none:""|truncatechars:60 }}</td>
+              <td>{{ pkg.publish_date }}</td>
+              <td>{{ pkg.last_fetched_date }}</td>
+              <td>
+                {% if pkg.google_drive_url %}<a href="{{ pkg.google_drive_url }}" target="_blank"><i class="bi bi-link-45deg"></i></a>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5">No pinned packages found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-<hr />
-<p>This is a placeholder app.</p>
+    <!-- Recents Section -->
+    <div class="dashboard-section">
+      <h2 class="section-title">Recents</h2>
+      <div class="custom-table">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Slug <button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+              <th>Description</th>
+              <th>Publish Date<button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+              <th>Last Fetched<button class="table-button"><i class="bi bi-chevron-down"></i></button></th>
+              <th>GDrive</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pkg in recent_packages %}
+            <tr>
+              <td>
+                <a href="{% url 'package_detail' slug=pkg.slug %}">{{ pkg.slug }}</a>
+              </td>
+              <td>{{ pkg.description|default_if_none:""|truncatechars:60 }}</td>
+              <td>{{ pkg.publish_date }}</td>
+              <td>{{ pkg.last_fetched_date }}</td>
+              <td>
+                {% if pkg.google_drive_url %}<a href="{{ pkg.google_drive_url }}" target="_blank"><i class="bi bi-link-45deg"></i></a>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5">No recent packages found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <div class="dashboard-footer">
+    <img src="{% static 'images/grass.png' %}" alt="Grass" class="grass-image" />
+  </div>
+</div>
+{% else %}
+<div class="login-page">
+  <div class="login-container">
+    <div class="login-header">
+      <div class="login-title-wrapper">
+        <h1 class="login-title">Oink!</h1>
+        <a href="/google/login/"><img src="{% static 'images/signin.png' %}" alt="Sign in with Google" class="login-button-image" /></a>
+      </div>
+    </div>
+    <div class="login-bottom">
+      <img src="{% static 'images/pigs.png' %}" alt="Pigs" class="pigs-image" />
+      <img src="{% static 'images/grass.png' %}" alt="Grass" class="grass-image" />
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
