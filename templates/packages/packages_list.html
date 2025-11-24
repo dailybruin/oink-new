@@ -82,6 +82,11 @@
             >{% endif %}
           </td>
           <td><button class="table-button"><i class="bi bi-pin-angle"></i></button></td>
+          <td><form action="{% url 'package_delete' pkg.pk %}" method="post">
+            {%csrf_token%}
+            <button class="table-button"><i class="bi bi-trash3"></i></button></form>
+          </td>
+          
         </tr>
         {% empty %}
         <tr>

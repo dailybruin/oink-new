@@ -202,15 +202,35 @@ body {
     font-size: 1.5rem;
 }
 
+.bi.bi-trash3 {
+    color: var(--primary-color) !important;
+    font-size: 1.5rem;
+}
+
 .table > :not(caption) > * > * {
   background-color: var(--background-color);
 }
 
 /* Modal */
+.custom-input {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    border-width: 1px;
+    color: #929292;
+}
 
-#newPackageModal .modal {
+#newPackageModal {
     --bs-modal-header-border-width: 0;
     --bs-modal-footer-border-width: 0;
+    font-family: "Inter", sans-serif;
+}
+
+#newPackageModal .btn-close {
+    --bs-btn-close-bg: none;
+}
+
+#newPackageModal .modal-header {
+    padding-bottom: 0;
 }
 
 #newPackageModal .modal-title {
@@ -222,4 +242,5 @@ body {
 
 #newPackageModal .modal-content {
     background-color: #FFFBF7; 
+    padding: 2rem;
 }
