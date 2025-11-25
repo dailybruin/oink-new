@@ -56,9 +56,10 @@ class Package(models.Model):
     images = models.JSONField(default=dict, blank=True)
     data = models.JSONField(default=dict, blank=True)
     processing = models.BooleanField(default=False)
+    pinned = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['-publish_date', 'slug']
+        ordering = ['-pinned', '-publish_date', 'slug']
 
     def __str__(self):
         return self.slug
