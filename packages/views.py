@@ -21,10 +21,10 @@ def index(request):
     user = request.user if request.user.is_authenticated else None
     
     if user and user.is_authenticated:
-        # Get pinned packages (most recently fetched, limit to 3)
+        # Get pinned packages
         pinned_packages = Package.objects.filter(
-            last_fetched_date__isnull=False
-        ).order_by('-last_fetched_date')[:3]
+            pinned=True
+        ).order_by('-publish_date', 'slug')[:3]
         
         # Get recent packages (by publish date, limit to 3)
         recent_packages = Package.objects.filter(

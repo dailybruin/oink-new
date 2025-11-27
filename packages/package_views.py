@@ -385,3 +385,22 @@ def package_delete(request, pk):
     if request.method == "POST":
         package.delete()
         return redirect('packages_list')
+
+@login_required
+def toggle_pin(request, pk):
+    """Toggle the pinned status of a package."""
+    package = get_object_or_404(Package, pk=pk)
+    
+    if request.method == "POST":
+        package.pinned = not package.pinned
+        package.save()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+            return JsonResponse({
+                'success': True,
+                'pinned': package.pinned
+            })
+        
+        return redirect('packages_list')
+    
+    return HttpResponseForbidden('Only POST requests allowed')
