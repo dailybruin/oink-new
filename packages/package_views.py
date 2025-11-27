@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -377,3 +377,11 @@ def package_image(request, slug, file_id):
       except Exception:
           logging.getLogger(__name__).exception('Failed to fetch image %s for package %s', file_id, slug)
           return HttpResponseNotFound('Image not found')
+
+@login_required
+def package_delete(request, pk):
+    package = get_object_or_404(Package, pk=pk)
+
+    if request.method == "POST":
+        package.delete()
+        return redirect('packages_list')

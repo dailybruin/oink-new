@@ -202,6 +202,11 @@ body {
     font-size: 1.5rem;
 }
 
+.bi.bi-trash3 {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+}
+
 .table > :not(caption) > * > * {
   background-color: var(--background-color);
 }
