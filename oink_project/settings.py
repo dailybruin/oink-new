@@ -12,6 +12,10 @@ DEBUG = os.getenv('DJANGO_DEBUG', '0') == '1'
 
 ALLOWED_HOSTS = ['*'] if DEBUG else []
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://oink.dailybruin.com',
+]
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
