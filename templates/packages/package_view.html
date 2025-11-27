@@ -1,37 +1,549 @@
 {% extends "packages/base.html" %} {% block content %}
-<h1>{{ package.slug }}</h1>
-<p>{{ package.description }}</p>
-<p>
-  Drive:
-  <a href="{{ package.google_drive_url }}" target="_blank"
-    >{{ package.google_drive_url }}</a
-  >
-</p>
-<button id="fetch-btn">Fetch from Drive</button>
+<div class="title-row">
+  <h1>{{ package.slug }}</h1>
 
-<!-- This line of code will run cached package payload so the page can render instantly after reloads -->
-{{ initial_payload|json_script:"initial-payload" }}
-
-<div style="display: flex; gap: 24px; align-items: flex-start">
-  <div style="flex: 1 1 auto; min-width: 0">
-    <h2>Data</h2>
-    <pre id="data-container" style="white-space: pre-wrap">(none)</pre>
-
-    <h2>Metadata</h2>
-    <pre id="meta-container">{}</pre>
-
-    <h2>Preview</h2>
-    <div id="article-container">(no article loaded)</div>
-  </div>
-  <div style="width: 380px; max-width: 40%">
-    <h2>Images</h2>
-    <div id="images-panel"></div>
-    <ul id="images-list" style="margin-top: 8px"></ul>
-  </div>
+  <a class="drive-link-title" 
+     href="{{ package.google_drive_url }}" 
+     target="_blank">
+    <i data-lucide="folder"></i>
+    Open Google Drive
+  </a>
 </div>
 
+<div class="package-info">
+  <p class="package-description">{{ package.description }}</p>
+</div>
+
+{{ initial_payload|json_script:"initial-payload" }}
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+
+<div class="package-layout">
+  <!-- Tabs + Fetch header -->
+  <div class="tab-header">
+    <div class="tab-header-tabs">
+      <button
+        class="tab-btn tab-btn-active"
+        data-tab="images"
+        type="button"
+      >
+        Images
+      </button>
+      <button
+        class="tab-btn"
+        data-tab="data"
+        type="button"
+      >
+        Data
+      </button>
+    </div>
+
+    <!-- Fetch button now sits on the same line as the tabs -->
+    <button
+    id="fetch-btn"
+    type="button"
+    class="fetch-icon-btn"
+    title="Fetch from Drive"
+  >
+  <i data-lucide="hard-drive"></i>
+  </button>
+  </div>
+
+  <div class="tab-panels">
+    <!-- IMAGES TAB -->
+    <div id="tab-images" class="tab-panel tab-panel-active">
+      <!-- Search + Sort + View all on one line -->
+      <div class="images-toolbar">
+        <!-- Search -->
+        <div class="images-toolbar-left">
+          <div class="images-search-wrapper">
+            <span class="images-search-icon">&#128269;</span>
+            <input
+              id="image-search"
+              type="text"
+              class="images-search-input"
+              placeholder="Search"
+            />
+          </div>
+        </div>
+      
+        <!-- Sort + View -->
+        <div class="images-toolbar-right">
+          <!-- Sort -->
+          <button
+            type="button"
+            class="toolbar-trigger"
+            id="sort-trigger"
+          >
+            <i class="toolbar-icon" data-lucide="arrow-up-down"></i>
+            <span class="toolbar-label">Sort</span>
+            <span class="toolbar-caret">▾</span>
+
+            <select id="image-sort" class="images-select">
+              <option value="original">Original</option>
+              <option value="name-asc">File name A–Z</option>
+              <option value="name-desc">File name Z–A</option>
+            </select>
+          </button>
+      
+          <!-- View -->
+          <button type="button" class="toolbar-trigger" id="view-trigger">
+            <i class="toolbar-icon" data-lucide="list"></i>
+            <span class="toolbar-label">View</span>
+            <span class="toolbar-caret">▾</span>
+          
+            <select id="image-view" class="images-select">
+              <option value="grid">Grid</option>
+              <option value="list">List</option>
+            </select>
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid + List containers -->
+      <div id="images-panel" class="images-grid"></div>
+
+      <div id="images-list-wrapper" class="images-list-wrapper">
+        <div class="images-list-header">
+          <span class="col-filename">File Name</span>
+          <span class="col-filetype">File Type</span>
+        </div>
+        <ul id="images-list" class="images-list"></ul>
+      </div>
+    </div>
+
+    <!-- DATA TAB -->
+    <div id="tab-data" class="tab-panel">
+      <div class="data-accordion">
+        <!-- DATA SECTION -->
+        <div class="data-section">
+          <button type="button" class="data-section-header">
+            <span>Data</span>
+            <span class="data-section-caret">▾</span>
+          </button>
+          <div class="data-section-body">
+            <pre id="data-container" class="data-pre">(none)</pre>
+          </div>
+        </div>
+    
+        <!-- METADATA SECTION -->
+        <div class="data-section">
+          <button type="button" class="data-section-header">
+            <span>Metadata</span>
+            <span class="data-section-caret">▾</span>
+          </button>
+          <div class="data-section-body">
+            <pre id="meta-container" class="data-pre">{}</pre>
+          </div>
+        </div>
+    
+        <!-- PREVIEW SECTION -->
+        <div class="data-section">
+          <button type="button" class="data-section-header">
+            <span>Preview</span>
+            <span class="data-section-caret">▾</span>
+          </button>
+          <div class="data-section-body">
+            <div id="article-container" class="data-preview">(no article loaded)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+</div>
+
+<style>
+  /* --- Title row: slug + drive link --- */
+/* --- Title row: slug + drive link --- */
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.drive-link-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: #e86357;
+  background: #ffe8e3;
+  border: 1px solid #f4b8af;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.drive-link-title:hover {
+  background: #ffdcd3;
+  border-color: #e59f96;
+}
+
+.drive-link-title svg {
+  width: 17px;
+  height: 17px;
+  color: #e86357;
+}
+
+/* --- Description text (standalone, no box) --- */
+.package-description {
+  font-size: 16px;
+  color: #444;
+  margin: 0 0 20px;
+  line-height: 1.55;
+}
+
+
+  
+  .package-layout {
+    margin-top: 16px;
+  }
+
+  /* Tabs row with fetch on the right */
+  .tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .tab-header-tabs {
+    display: inline-flex;
+  }
+
+  .tab-btn {
+    padding: 10px 22px;
+    background: #f5b4ac;        /* light coral */
+    color: white;
+    border: none;
+    border-radius: 10px 10px 0 0;  /* rounded top only */
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-right: 0;
+  }
+
+  .tab-btn + .tab-btn {
+    margin-left: -4px; /* overlap edges to remove gap */
+  }
+
+  .tab-btn-active {
+    background:  #e86357;       /* darker coral for active tab */
+    color: white;
+    font-weight: 600;
+  }
+
+  .tab-panels {
+    margin-top: 4px;
+  }
+
+  .tab-panel {
+    display: none;
+  }
+
+  .tab-panel-active {
+    display: block;
+  }
+
+  /* Toolbar: search + sort + view */
+  .images-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 8px 0 20px;
+  }
+
+  .images-toolbar-left {
+  flex: 1 1  auto;           /* don't stretch; just fit the search bar */
+  margin-right: 32px;       /* small buffer before Sort/View */
+}
+
+.images-toolbar-right {
+    margin-left: auto;        /* pushes Sort/View to the right */
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;                /* distance between Sort and View */
+}
+
+
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .images-toolbar-label {
+    font-size: 14px;
+    color: #333;
+  }
+
+  .images-select {
+    position: absolute;
+    inset: 0;          /* top:0; right:0; bottom:0; left:0 */
+    opacity: 0;        /* hide the browser UI */
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Search bar styling */
+  .images-search-wrapper {
+    max-width: 390px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    border: 2px solid #d3d3d3;
+    border-radius: 1200px;
+    padding: 4px 12px;
+    background: #fffaf8;
+  }
+
+  .images-search-icon {
+    font-size: 14px;
+    margin-right: 6px;
+  }
+
+  .images-search-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    flex: 1;
+  }
+
+  /* Fetch button */
+  .fetch-icon-btn {
+    border: none;
+    background: #e86357;
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .fetch-icon-btn svg {
+    display: block;
+  }
+
+  .fetch-icon-btn:hover {
+    opacity: 0.9;
+  }
+
+  /* Images grid */
+  .images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  /* Transparent image cards */
+  .image-card {
+    background: transparent;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .image-thumb {
+    width: 100%;
+    height: 180px;
+    background: #f6f6f6;
+    overflow: hidden;
+    border: 1px solid #c9c9c9;
+    border-radius: 0;
+  }
+
+  .image-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0;
+  }
+
+  .image-url {
+    font-size: 12px;
+    color: #444;
+    word-break: break-all;
+    padding-left: 2px;
+  }
+
+  /* List view */
+  .images-list-wrapper {
+    margin-top: 16px;
+    display: none;   /* shown in list mode */
+  }
+
+  .images-list-header {
+    display: grid;
+    grid-template-columns: 1fr 120px; /* file name | file type */
+    font-size: 14px;
+    font-weight: 600;
+    color: #d56a55;
+    margin-bottom: 8px;
+  }
+
+  .images-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+
+  .images-list-row {
+    display: grid;
+    grid-template-columns: 1fr 120px;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .images-list-row a {
+    color: #333;
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  .images-list-row a:hover {
+    text-decoration: underline;
+  }
+
+  .col-filename {
+    padding-right: 12px;
+  }
+
+  .col-filetype {
+    text-align: left;
+    color: #666;
+  }
+
+
+  .toolbar-trigger {
+  position: relative;         /* so the select can overlay just this button */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-size: 14px;
+  color: #2b2525;
+  cursor: pointer;
+}
+
+
+.toolbar-trigger svg {
+  display: block;
+}
+
+.sort-icon,
+.menu-icon {
+  stroke: #2b2525;
+}
+
+.caret-icon {
+  stroke: #2b2525;
+}
+
+  /* ---------- DATA TAB / ACCORDION ---------- */
+
+.data-accordion {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* individual section container */
+.data-section {
+  border: 1px solid #ebd2c9;
+  border-radius: 8px;
+  background: #fff7f3;
+  overflow: hidden;
+}
+
+/* header button */
+.data-section-header {
+  width: 100%;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* little caret arrow */
+.data-section-caret {
+  font-size: 14px;
+  transition: transform 0.15s ease-out;
+}
+
+/* body that contains <pre> or preview */
+.data-section-body {
+  padding: 10px 14px 12px;
+}
+
+/* collapsed state: hide body */
+.data-section-collapsed .data-section-body {
+  display: none;
+}
+
+/* rotate caret when collapsed */
+.data-section-collapsed .data-section-caret {
+  transform: rotate(-90deg);
+}
+
+/* JSON / metadata styling */
+.data-pre {
+  background: #fffaf8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #333;
+  white-space: pre-wrap;
+  max-height: 380px;
+  overflow: auto;
+  border: 1px solid #ebd2c9;
+}
+
+/* Preview text tweaks so it feels like article body */
+.data-preview h1 {
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+
+.data-preview p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.fetch-icon-btn i,
+.fetch-icon-btn svg {
+  color: white !important;
+}
+
+
+</style>
+
 <script>
-  // HTML escape utility function to prevent XSS
+  // HTML escape utility
   function escapeHtml(unsafe) {
     if (!unsafe) return '';
     return unsafe
@@ -42,6 +554,199 @@
       .replace(/'/g, "&#039;");
   }
 
+  // --- Images state + rendering ---
+  let currentImages = [];
+  let currentViewMode = "grid"; // "grid" or "list"
+  let currentSearchTerm = "";   // search text
+
+  function applyImageViewMode() {
+    const grid = document.getElementById("images-panel");
+    const listWrapper = document.getElementById("images-list-wrapper");
+    if (!grid || !listWrapper) return;
+
+    if (currentViewMode === "grid") {
+      grid.style.display = "grid";
+      listWrapper.style.display = "none";
+    } else {
+      grid.style.display = "none";
+      listWrapper.style.display = "block";
+    }
+  }
+
+  function renderImages() {
+    const imagesPanel = document.getElementById("images-panel");
+    const imagesList = document.getElementById("images-list");
+    if (!imagesPanel || !imagesList) return;
+
+    imagesPanel.innerHTML = "";
+    imagesList.innerHTML = "";
+
+    if (!currentImages || currentImages.length === 0) {
+      applyImageViewMode();
+      return;
+    }
+
+    // Copy & filter by search
+    let imgs = currentImages.slice();
+    if (currentSearchTerm) {
+      const q = currentSearchTerm.toLowerCase();
+      imgs = imgs.filter(it => {
+        const name = (it.name || "").toLowerCase();
+        const url = (it.url || "").toLowerCase();
+        return name.includes(q) || url.includes(q);
+      });
+    }
+
+    // Sort selection
+    const sortSelect = document.getElementById("image-sort");
+    const sortValue = sortSelect ? sortSelect.value : "original";
+
+    if (sortValue === "name-asc" || sortValue === "name-desc") {
+      imgs.sort((a, b) => {
+        const nameA = (a.name || a.url || "").toLowerCase();
+        const nameB = (b.name || b.url || "").toLowerCase();
+        if (nameA < nameB) return sortValue === "name-asc" ? -1 : 1;
+        if (nameA > nameB) return sortValue === "name-asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    // GRID thumbnails
+    imgs.forEach((it) => {
+      if (!it.url) return;
+
+      const card = document.createElement("div");
+      card.className = "image-card";
+
+      const thumb = document.createElement("div");
+      thumb.className = "image-thumb";
+
+      const img = document.createElement("img");
+      img.src = it.url;
+      img.alt = it.name || "image";
+
+      img.onerror = function () {
+        this.style.display = "none";
+        const errorMsg = document.createElement("div");
+        errorMsg.textContent = "Failed to load image";
+        errorMsg.className = "text-danger small";
+        thumb.appendChild(errorMsg);
+      };
+
+      thumb.appendChild(img);
+      card.appendChild(thumb);
+
+      const link = document.createElement("div");
+      link.className = "image-url";
+      link.textContent = it.url;  // keep your original URL format
+
+      card.appendChild(link);
+      imagesPanel.appendChild(card);
+    });
+
+    // LIST view rows: file name + file type
+    imgs.forEach((it) => {
+      if (!it.url) return;
+
+      const li = document.createElement("li");
+      li.className = "images-list-row";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "col-filename";
+      const displayName = it.name || it.url.split("/").pop() || it.url;
+
+      const link = document.createElement("a");
+      link.href = it.url;
+      link.target = "_blank";
+      link.textContent = displayName;
+      nameSpan.appendChild(link);
+
+      const typeSpan = document.createElement("span");
+      typeSpan.className = "col-filetype";
+      let ext = "—";
+      // Prefer the file name if present, otherwise use the URL
+      const sourceForExt = (it.name && it.name.includes(".")) ? it.name : it.url;
+      const parts = sourceForExt.split(".");
+      if (parts.length > 1) {
+        ext = parts[parts.length - 1].split(/[#?]/)[0].toUpperCase();
+      }
+      typeSpan.textContent = ext;
+
+
+      li.appendChild(nameSpan);
+      li.appendChild(typeSpan);
+      imagesList.appendChild(li);
+    });
+
+    applyImageViewMode();
+  }
+
+  // Tabs
+  function initTabs() {
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const panels = {
+      images: document.getElementById("tab-images"),
+      data: document.getElementById("tab-data"),
+    };
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const target = btn.getAttribute("data-tab");
+
+        tabButtons.forEach((b) => b.classList.remove("tab-btn-active"));
+        btn.classList.add("tab-btn-active");
+
+        Object.keys(panels).forEach((key) => {
+          panels[key].classList.toggle(
+            "tab-panel-active",
+            key === target
+          );
+        });
+      });
+    });
+  }
+
+  function initImageSort() {
+    const sortSelect = document.getElementById("image-sort");
+    if (!sortSelect) return;
+
+    sortSelect.addEventListener("change", renderImages);
+  }
+
+  function initImageView() {
+    const viewSelect = document.getElementById("image-view");
+    if (!viewSelect) return;
+
+    currentViewMode = viewSelect.value === "list" ? "list" : "grid";
+    applyImageViewMode();
+
+    viewSelect.addEventListener("change", () => {
+      currentViewMode = viewSelect.value === "list" ? "list" : "grid";
+      applyImageViewMode();
+    });
+  }
+
+  function initImageSearch() {
+    const searchInput = document.getElementById("image-search");
+    if (!searchInput) return;
+
+    searchInput.addEventListener("input", () => {
+      currentSearchTerm = searchInput.value || "";
+      renderImages();
+    });
+  }
+
+    function initDataAccordion() {
+    const sections = document.querySelectorAll(".data-section-header");
+    sections.forEach((header) => {
+      header.addEventListener("click", () => {
+        const section = header.closest(".data-section");
+        section.classList.toggle("data-section-collapsed");
+      });
+    });
+  }
+
+
   // Render package data into the page
   function renderPackageData(data) {
     if (data.error) {
@@ -49,105 +754,76 @@
       return;
     }
 
-    // Get parsed AML data
     const amlFiles = data.data || data.aml_files || {};
     const articleData = amlFiles['article.aml'] || {};
 
-    // Build HTML from AML structure (matching Kerckhoff preview format)
     let html = '';
 
-    // Render headline
     if (articleData.headline) {
       html += '<h1 class="display-4 mb-3">' + escapeHtml(articleData.headline) + '</h1>';
     }
-
-    // Render author
     if (articleData.author) {
       html += '<p class="lead text-muted">By ' + escapeHtml(articleData.author) + '</p>';
     }
-
-    // Render author bio
     if (articleData.authorbio) {
       html += '<p class="text-muted"><em>' + escapeHtml(articleData.authorbio) + '</em></p>';
     }
-
-    // Render author email
     if (articleData.authoremail) {
       html += '<p class="text-muted">Email: ' + escapeHtml(articleData.authoremail) + '</p>';
     }
-
-    // Render author twitter
     if (articleData.authortwitter) {
       html += '<p class="text-muted">Twitter: ' + escapeHtml(articleData.authortwitter) + '</p>';
     }
-
-    // Render excerpt
     if (articleData.excerpt) {
       html += '<p class="lead">' + escapeHtml(articleData.excerpt) + '</p>';
     }
 
-    // Render cover image (make it downloadable with link wrapper)
     if (articleData.coverimg) {
       html += '<a href="' + escapeHtml(articleData.coverimg) + '" download>';
-      html += '<img src="' + escapeHtml(articleData.coverimg) + '" class="img-fluid mb-4" alt="' + escapeHtml(articleData.coveralt || '') + '" />';
+      html += '<img src="' + escapeHtml(articleData.coverimg) +
+              '" class="img-fluid mb-4" alt="' +
+              escapeHtml(articleData.coveralt || '') + '" />';
       html += '</a>';
     }
 
-    // Render cover credit
     if (articleData.covercred) {
       html += '<p class="text-muted small">' + escapeHtml(articleData.covercred) + '</p>';
     }
-
-    // Render coveralt
     if (articleData.coveralt && !articleData.coverimg) {
       html += '<p class="text-muted">' + escapeHtml(articleData.coveralt) + '</p>';
     }
-
-    // Render updated date
     if (articleData.updated) {
       html += '<p class="text-muted small">Updated: ' + escapeHtml(articleData.updated) + '</p>';
     }
-
-    // Render article type
     if (articleData.articleType) {
       html += '<p class="text-muted small">Type: ' + escapeHtml(articleData.articleType) + '</p>';
     }
 
-    // Render content blocks
     const content = articleData.content || [];
     if (content.length > 0) {
       html += '<div class="article-content mt-4">';
 
-      // Preprocess content to fix malformed pull quotes from ArchieML
-      // Sometimes ArchieML splits pull quotes into two objects:
-      // 1. {"type": "pull", "value": {}}
-      // 2. {"value": {"caption": "..."}} (missing type)
       const fixedContent = [];
       for (let i = 0; i < content.length; i++) {
         const block = content[i];
         const nextBlock = content[i + 1];
 
-        // Check if this is a malformed pull quote split
         if (block.type === 'pull' &&
             (!block.value || !block.value.caption) &&
             nextBlock &&
             !nextBlock.type &&
             nextBlock.value &&
             nextBlock.value.caption) {
-          // Merge the two objects into one proper pull quote
           fixedContent.push({
             type: 'pull',
-            value: {
-              caption: nextBlock.value.caption
-            }
+            value: { caption: nextBlock.value.caption }
           });
-          i++; // Skip the next block since we merged it
+          i++;
         } else {
           fixedContent.push(block);
         }
       }
 
-      // Render the fixed content blocks
       fixedContent.forEach(block => {
         if (block.type === 'text') {
           html += '<p class="mb-3">' + escapeHtml(block.value) + '</p>';
@@ -159,7 +835,6 @@
           html += '</blockquote>';
           html += '</div>';
         } else if (block.type === 'image') {
-          // Render image blocks with caption and credit
           const imageUrl = (block.value && block.value.url) ? block.value.url : '';
           const imageAlt = (block.value && block.value.alt) ? block.value.alt : '';
           const imageCaption = (block.value && block.value.caption) ? block.value.caption : '';
@@ -167,29 +842,32 @@
 
           html += '<figure class="my-4">';
           html += '<a href="' + escapeHtml(imageUrl) + '" download>';
-          html += '<img src="' + escapeHtml(imageUrl) + '" class="img-fluid" alt="' + escapeHtml(imageAlt) + '" />';
+          html += '<img src="' + escapeHtml(imageUrl) +
+                  '" class="img-fluid" alt="' +
+                  escapeHtml(imageAlt) + '" />';
           html += '</a>';
           if (imageCaption) {
-            html += '<figcaption class="text-muted small mt-2">' + escapeHtml(imageCaption) + '</figcaption>';
+            html += '<figcaption class="text-muted small mt-2">' +
+                    escapeHtml(imageCaption) + '</figcaption>';
           }
           if (imageCredit) {
-            html += '<p class="text-muted small">' + escapeHtml(imageCredit) + '</p>';
+            html += '<p class="text-muted small">' +
+                    escapeHtml(imageCredit) + '</p>';
           }
           html += '</figure>';
         }
       });
+
       html += '</div>';
     }
 
-    // Fallback to plain text if no AML content
     if (!html && data.article) {
-      html = '<pre style="white-space: pre-wrap;">' + escapeHtml(data.article) + '</pre>';
+      html = '<pre style="white-space: pre-wrap;">' +
+             escapeHtml(data.article) + '</pre>';
     }
 
     document.getElementById("article-container").innerHTML = html || "(empty)";
 
-    // Show the raw JSON payload for debugging/reference
-    // Filter out _gridfs_aml as it's internal storage metadata
     const dataJson = data.data || data.aml_files || {};
     const filteredData = {};
     for (const key in dataJson) {
@@ -197,96 +875,79 @@
         filteredData[key] = dataJson[key];
       }
     }
-    document.getElementById("data-container").textContent = JSON.stringify(
-      filteredData,
-      null,
-      2
-    );
+    document.getElementById("data-container").textContent =
+      JSON.stringify(filteredData, null, 2);
 
-    // Leave metadata section empty as requested
     document.getElementById("meta-container").textContent = "{}";
 
-    // Display thumbnails and links for images pulled from Drive/GridFS
-    const imagesPanel = document.getElementById("images-panel");
-    const imagesList = document.getElementById("images-list");
-    imagesPanel.innerHTML = "";
-    imagesList.innerHTML = "";
-    const imgs = data.images || [];
-    imgs.forEach((it) => {
-      if (it.url) {
-        const wrap = document.createElement("div");
-        wrap.style.marginBottom = "12px";
-        const img = document.createElement("img");
-        img.src = it.url;
-        img.alt = it.name || "image";
-        img.style.maxWidth = "100%";
-        img.style.border = "1px solid #ddd";
-        img.style.borderRadius = "6px";
-
-        // Add error handling for broken images
-        img.onerror = function() {
-          this.style.display = 'none';
-          const errorMsg = document.createElement("div");
-          errorMsg.textContent = "Failed to load image";
-          errorMsg.className = "text-danger small";
-          wrap.appendChild(errorMsg);
-        };
-
-        wrap.appendChild(img);
-        const link = document.createElement("div");
-        link.textContent = "@" + it.url;
-        link.style.wordBreak = "break-all";
-        link.style.marginTop = "6px";
-        link.style.fontSize = "12px";
-        link.style.color = "#666";
-        wrap.appendChild(link);
-        imagesPanel.appendChild(wrap);
-      }
-    });
-    imgs.forEach((it) => {
-      const li = document.createElement("li");
-      const a = document.createElement("a");
-      a.href = it.url;
-      a.target = "_blank";
-      a.textContent = it.name || it.url;
-      li.appendChild(a);
-      imagesList.appendChild(li);
-    });
+    currentImages = data.images || [];
+    renderImages();
   }
 
-  // Hydrate the page with cached data so it survives reloads
+  // --- Bootstrap page with cached data ---
   const initialPayload = JSON.parse(
     document.getElementById("initial-payload").textContent
   );
-  renderPackageData(initialPayload);
+  
 
-  document.getElementById("fetch-btn").addEventListener("click", function () {
-    const btn = this;
-    const slug = "{{ package.slug }}";
 
-    // Disable button and show loading state
-    btn.disabled = true;
-    const originalText = btn.textContent;
-    btn.textContent = "Fetching...";
+  // Fetch button handler
+  const fetchBtn = document.getElementById("fetch-btn");
+  if (fetchBtn) {
+    fetchBtn.addEventListener("click", function () {
+      const btn = this;
+      const slug = "{{ package.slug }}";
 
-    fetch(`/packages/${slug}/fetch/`)
-      .then((r) => {
-        if (!r.ok) {
-          throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-        }
-        return r.json();
-      })
-      .then((data) => {
-        renderPackageData(data);
-        btn.textContent = originalText;
-        btn.disabled = false;
-      })
-      .catch((err) => {
-        alert("Fetch failed: " + err.message);
-        btn.textContent = originalText + " (retry)";
-        btn.disabled = false;
-      });
-  });
+      btn.disabled = true;
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = "Fetching...";
+
+      fetch(`/packages/${slug}/fetch/`)
+        .then((r) => {
+          if (!r.ok) {
+            throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+          }
+          return r.json();
+        })
+        .then((data) => {
+          renderPackageData(data);
+          btn.innerHTML = originalHTML;
+          btn.disabled = false;
+        })
+        .catch((err) => {
+          alert("Fetch failed: " + err.message);
+          btn.innerHTML = originalHTML;
+          btn.disabled = false;
+        });
+    });
+  }
+
+  function connectSortAndViewTriggers() {
+  const sortTrigger = document.getElementById("sort-trigger");
+  const sortSelect  = document.getElementById("image-sort");
+
+  // You actually don't need this at all because the <select>
+  // covers the button, but if you want, you can just open the picker:
+  if (sortTrigger && sortSelect && sortSelect.showPicker) {
+    sortTrigger.addEventListener("click", () => {
+      sortSelect.showPicker();
+    });
+  }
+
+  // NOTE: no viewTrigger logic here anymore
+}
+
+
+renderPackageData(initialPayload);
+initTabs();
+initImageSort();
+initImageView();
+initImageSearch();
+connectSortAndViewTriggers();   
+initDataAccordion();
+lucide.createIcons();
+
+
 </script>
 
 {% endblock %}
