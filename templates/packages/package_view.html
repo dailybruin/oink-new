@@ -38,7 +38,7 @@
       </button>
     </div>
 
-    <!-- Fetch button now sits on the same line as the tabs -->
+    <!-- Fetch button  -->
     <button
     id="fetch-btn"
     type="button"
@@ -52,7 +52,7 @@
   <div class="tab-panels">
     <!-- IMAGES TAB -->
     <div id="tab-images" class="tab-panel tab-panel-active">
-      <!-- Search + Sort + View all on one line -->
+      
       <div class="images-toolbar">
         <!-- Search -->
         <div class="images-toolbar-left">
@@ -154,46 +154,45 @@
 
 <style>
   /* --- Title row: slug + drive link --- */
-/* --- Title row: slug + drive link --- */
-.title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
 
-.drive-link-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: #e86357;
-  background: #ffe8e3;
-  border: 1px solid #f4b8af;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-}
+  .drive-link-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: #e86357;
+    background: #ffe8e3;
+    border: 1px solid #f4b8af;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+  }
 
-.drive-link-title:hover {
-  background: #ffdcd3;
-  border-color: #e59f96;
-}
+  .drive-link-title:hover {
+    background: #ffdcd3;
+    border-color: #e59f96;
+  }
 
-.drive-link-title svg {
-  width: 17px;
-  height: 17px;
-  color: #e86357;
-}
+  .drive-link-title svg {
+    width: 17px;
+    height: 17px;
+    color: #e86357;
+  }
 
-/* --- Description text (standalone, no box) --- */
-.package-description {
-  font-size: 16px;
-  color: #444;
-  margin: 0 0 20px;
-  line-height: 1.55;
-}
+/* --- Description text --- */
+  .package-description {
+    font-size: 16px;
+    color: #444;
+    margin: 0 0 20px;
+    line-height: 1.55;
+  }
 
 
   
@@ -201,7 +200,7 @@
     margin-top: 16px;
   }
 
-  /* Tabs row with fetch on the right */
+  
   .tab-header {
     display: flex;
     justify-content: space-between;
@@ -215,10 +214,10 @@
 
   .tab-btn {
     padding: 10px 22px;
-    background: #f5b4ac;        /* light coral */
+    background: #f5b4ac;    
     color: white;
     border: none;
-    border-radius: 10px 10px 0 0;  /* rounded top only */
+    border-radius: 10px 10px 0 0; 
     font-size: 18px;
     font-weight: 500;
     cursor: pointer;
@@ -226,11 +225,11 @@
   }
 
   .tab-btn + .tab-btn {
-    margin-left: -4px; /* overlap edges to remove gap */
+    margin-left: -4px; 
   }
 
   .tab-btn-active {
-    background:  #e86357;       /* darker coral for active tab */
+    background:  #e86357;    
     color: white;
     font-weight: 600;
   }
@@ -256,16 +255,15 @@
   }
 
   .images-toolbar-left {
-  flex: 1 1  auto;           /* don't stretch; just fit the search bar */
-  margin-right: 32px;       /* small buffer before Sort/View */
+  flex: 1 1  auto;         
 }
 
-.images-toolbar-right {
-    margin-left: auto;        /* pushes Sort/View to the right */
+  .images-toolbar-right {
+    margin-left: auto;    
     display: inline-flex;
     align-items: center;
-    gap: 12px;                /* distance between Sort and View */
-}
+    gap: 12px;               
+  }
 
 
   .toolbar-group {
@@ -281,8 +279,8 @@
 
   .images-select {
     position: absolute;
-    inset: 0;          /* top:0; right:0; bottom:0; left:0 */
-    opacity: 0;        /* hide the browser UI */
+    inset: 0;         
+    opacity: 0;    
     cursor: pointer;
     border: none;
     background: transparent;
@@ -381,12 +379,12 @@
   /* List view */
   .images-list-wrapper {
     margin-top: 16px;
-    display: none;   /* shown in list mode */
+    display: none;  
   }
 
   .images-list-header {
     display: grid;
-    grid-template-columns: 1fr 120px; /* file name | file type */
+    grid-template-columns: 1fr 120px; 
     font-size: 14px;
     font-weight: 600;
     color: #d56a55;
@@ -428,116 +426,116 @@
   }
 
 
-  .toolbar-trigger {
-  position: relative;         /* so the select can overlay just this button */
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  padding: 4px 0;
-  font-size: 14px;
-  color: #2b2525;
-  cursor: pointer;
-}
+    .toolbar-trigger {
+    position: relative;       
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    font-size: 14px;
+    color: #2b2525;
+    cursor: pointer;
+  }
 
 
-.toolbar-trigger svg {
-  display: block;
-}
+  .toolbar-trigger svg {
+    display: block;
+  }
 
-.sort-icon,
-.menu-icon {
-  stroke: #2b2525;
-}
+  .sort-icon,
+  .menu-icon {
+    stroke: #2b2525;
+  }
 
-.caret-icon {
-  stroke: #2b2525;
-}
+  .caret-icon {
+    stroke: #2b2525;
+  }
 
-  /* ---------- DATA TAB / ACCORDION ---------- */
+    /* Data Tab Accordion Drop */
 
-.data-accordion {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+  .data-accordion {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-/* individual section container */
-.data-section {
-  border: 1px solid #ebd2c9;
-  border-radius: 8px;
-  background: #fff7f3;
-  overflow: hidden;
-}
+  /* individual section container */
+  .data-section {
+    border: 1px solid #ebd2c9;
+    border-radius: 8px;
+    background: #fff7f3;
+    overflow: hidden;
+  }
 
-/* header button */
-.data-section-header {
-  width: 100%;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
+  /* header button */
+  .data-section-header {
+    width: 100%;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+  }
 
-/* little caret arrow */
-.data-section-caret {
-  font-size: 14px;
-  transition: transform 0.15s ease-out;
-}
+  /* caret arrow */
+  .data-section-caret {
+    font-size: 14px;
+    transition: transform 0.15s ease-out;
+  }
 
-/* body that contains <pre> or preview */
-.data-section-body {
-  padding: 10px 14px 12px;
-}
 
-/* collapsed state: hide body */
-.data-section-collapsed .data-section-body {
-  display: none;
-}
+  .data-section-body {
+    padding: 10px 14px 12px;
+  }
 
-/* rotate caret when collapsed */
-.data-section-collapsed .data-section-caret {
-  transform: rotate(-90deg);
-}
+  /* collapsed state: hide body */
+  .data-section-collapsed .data-section-body {
+    display: none;
+  }
 
-/* JSON / metadata styling */
-.data-pre {
-  background: #fffaf8;
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
-  line-height: 1.45;
-  color: #333;
-  white-space: pre-wrap;
-  max-height: 380px;
-  overflow: auto;
-  border: 1px solid #ebd2c9;
-}
+  /* rotate caret when collapsed */
+  .data-section-collapsed .data-section-caret {
+    transform: rotate(-90deg);
+  }
 
-/* Preview text tweaks so it feels like article body */
-.data-preview h1 {
-  font-size: 26px;
-  margin-bottom: 8px;
-}
+  /* JSON / metadata styling */
+  .data-pre {
+    background: #fffaf8;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #333;
+    white-space: pre-wrap;
+    max-height: 380px;
+    overflow: auto;
+    border: 1px solid #ebd2c9;
+  }
 
-.data-preview p {
-  font-size: 15px;
-  line-height: 1.6;
-}
 
-.fetch-icon-btn i,
-.fetch-icon-btn svg {
-  color: white !important;
-}
+  .data-preview h1 {
+    font-size: 26px;
+    margin-bottom: 8px;
+  }
+
+  .data-preview p {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .fetch-icon-btn i,
+  .fetch-icon-btn svg {
+    color: white !important;
+  }
 
 
 </style>
@@ -926,15 +924,14 @@
   const sortTrigger = document.getElementById("sort-trigger");
   const sortSelect  = document.getElementById("image-sort");
 
-  // You actually don't need this at all because the <select>
-  // covers the button, but if you want, you can just open the picker:
+  
   if (sortTrigger && sortSelect && sortSelect.showPicker) {
     sortTrigger.addEventListener("click", () => {
       sortSelect.showPicker();
     });
   }
 
-  // NOTE: no viewTrigger logic here anymore
+ 
 }
 
 
