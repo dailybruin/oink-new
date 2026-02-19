@@ -147,6 +147,28 @@ def paginate_package_list(request, queryset, items_per_page=10, pages_in_block=3
 def package_create(request):
     return redirect('packages_list')
 
+def _strip_footnote_keys(data):
+    """Remove single-letter keys with empty list value from AML parsed data.
+    ArchieML treats lines starting with [f], [g], etc. as array declarations,
+    so footnote markers in the Doc become junk keys."""
+    if not isinstance(data, dict):
+        return data
+    out = {}
+    for k, v in data.items():
+        if k.startswith('_'):
+            out[k] = v
+            continue
+        if isinstance(v, dict):
+            v = dict(v)
+            drop = [x for x in v if len(x) == 1 and x.isalpha() and v.get(x) == []]
+            for x in drop:
+                del v[x]
+            out[k] = v
+        else:
+            out[k] = v
+    return out
+
+
 """ This new function will flatten the stored image in google drive into a simple list for templates """
 def _format_images(images_data):
 
@@ -198,11 +220,12 @@ def package_detail(request, slug):
     Send the cached data so the template can preload without extra fetches 
     
     Also check the package_fetch function below to get the idea """
+    _data = _strip_footnote_keys(pkg.data or {})
     initial_payload = {
         'slug': pkg.slug,
         'article': pkg.cached_article_preview or '',
-        'aml_files': pkg.data or {},
-        'data': pkg.data or {},
+        'aml_files': _data,
+        'data': _data,
         'images': _format_images(pkg.images),
     }
 
@@ -314,6 +337,10 @@ def _read_local_sample(slug: str):
         if archieml:
             try:
                 parsed = archieml.loads(txt)
+                if isinstance(parsed, dict):
+                    drop = [k for k in parsed if len(k) == 1 and k.isalpha() and parsed[k] == []]
+                    for k in drop:
+                        del parsed[k]
                 result['aml_files']['article.aml'] = parsed
             except Exception:
                 result['aml_files']['article.aml'] = txt
@@ -333,11 +360,12 @@ def package_fetch(request, slug):
     try:
         pkg.fetch_from_gdrive(request.user)
         pkg.refresh_from_db()  # ensure we respond with the latest persisted state
+        _data = _strip_footnote_keys(pkg.data or {})
         return JsonResponse({
             'slug': pkg.slug,
             'article': pkg.cached_article_preview or '',
-            'aml_files': pkg.data or {},
-            'data': pkg.data or {},
+            'aml_files': _data,
+            'data': _data,
             'images': _format_images(pkg.images),
             'last_fetched_date': pkg.last_fetched_date,
         })

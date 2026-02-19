@@ -316,6 +316,12 @@ class Package(models.Model):
                                                 ordered[key] = parsed[key]
                                         parsed = ordered
 
+                                    _drop = [k for k in parsed if len(k) == 1 and k.isalpha() and parsed[k] == []]
+                                    for k in _drop:
+                                        del parsed[k]
+                                    if _drop:
+                                        print(f"[FETCH] Removed footnote-style single-letter keys: {_drop}")
+
                                     aml_files[name] = parsed
                                     print(f"[FETCH] Successfully parsed AML with ArchieML")
                                 except Exception as e:
