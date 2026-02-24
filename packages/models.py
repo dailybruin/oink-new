@@ -184,7 +184,6 @@ class Package(models.Model):
         gridfs_aml = {}
         gridfs_image_assets = []
         gridfs_aml_assets = []
-
         try:
             from google.oauth2 import service_account as _sa
             from googleapiclient.discovery import build as _gbuild
@@ -368,13 +367,19 @@ class Package(models.Model):
                             print(f"[FETCH] Failed to export article: {e}")
                     elif mime.startswith('image'):
                         gdrive_images.append({'name': name, 'url': f'/packages/{self.slug}/image/{fid}/'})
-                        
-                        # Optionally persist image bytes to MongoDB GridFS
-                        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False):
+                        # Download image only when storing in GridFS (no S3)
+                        need_content = getattr(settings, 'MONGODB_FILESTORE_ENABLED', False)
+                        content = None
+                        if need_content:
                             try:
                                 content = service.files().get_media(fileId=fid).execute()
                                 if isinstance(content, str):
                                     content = content.encode('utf-8')
+                            except Exception:
+                                content = None
+                        # Persist image bytes to MongoDB GridFS; link under image will be /files/<id>/ (serves image)
+                        if getattr(settings, 'MONGODB_FILESTORE_ENABLED', False) and content is not None:
+                            try:
                                 from .file_store import store_bytes
                                 file_id = store_bytes(
                                     name=name,

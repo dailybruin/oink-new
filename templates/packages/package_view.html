@@ -368,6 +368,11 @@
     color: #444;
     word-break: break-all;
     padding-left: 2px;
+    text-decoration: none;
+  }
+  .image-url:hover {
+    text-decoration: underline;
+    color: #d56a55;
   }
 
   /* List view */
@@ -628,9 +633,12 @@
       thumb.appendChild(img);
       card.appendChild(thumb);
 
-      const link = document.createElement("div");
+      const link = document.createElement("a");
       link.className = "image-url";
-      link.textContent = it.url;  // keep your original URL format
+      link.href = it.link_url || it.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = it.link_url || it.url;  // copyable link: assets URL if set, else app URL
 
       card.appendChild(link);
       imagesPanel.appendChild(card);
@@ -648,7 +656,7 @@
       const displayName = it.name || it.url.split("/").pop() || it.url;
 
       const link = document.createElement("a");
-      link.href = it.url;
+      link.href = it.link_url || it.url;
       link.target = "_blank";
       link.textContent = displayName;
       nameSpan.appendChild(link);

@@ -113,10 +113,9 @@ def signout(request):
     logout(request)
     return redirect('/')
 
-""" Stream a file from GridFS by its ObjectId (which is stored as a string in mongoDB)
-
-    Example URL: /files/<file_id>/ """
-@login_required
+""" Stream a file from GridFS by its ObjectId (which is stored as a string in mongoDB).
+    Example URL: /files/<file_id>/
+    Public GET so the URL can be used as image source (img src, CMS upload by URL, etc.). """
 def serve_gridfs_file(request, file_id: str):
     try:
         oid = ObjectId(file_id)
@@ -144,7 +143,9 @@ def serve_gridfs_file(request, file_id: str):
         stream.close()
 
     response = HttpResponse(data, content_type=content_type)
-    
-    """ Inline by default but adjusts if you need attachment """
-    response["Content-Disposition"] = f"inline; filename=\"{filename}\""
+    # ?download=1 or ?attachment=1 to force download instead of inline display
+    if request.GET.get("download") or request.GET.get("attachment"):
+        response["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+    else:
+        response["Content-Disposition"] = f"inline; filename=\"{filename}\""
     return response

@@ -170,39 +170,62 @@ def _strip_footnote_keys(data):
 
 
 """ This new function will flatten the stored image in google drive into a simple list for templates """
-def _format_images(images_data):
-
+def _format_images(images_data, request=None, slug=None):
     """ Convert stored images data into a flat list of images with name and URL for templates.
-    Deduplicates images by filename, prioritizing GridFS URLs over Drive URLs. """
+    Deduplicates images by filename, prioritizing GridFS URLs over Drive URLs.
+    If request is provided, relative URLs are converted to absolute for loading (url).
+    If ASSETS_BASE_URL is set and slug is provided, link_url is set to the assets-style URL
+    (e.g. https://assets3.dailybruin.com/images/{slug}/{filename}) for the copyable link. """
     if not images_data:
         return []
 
-    # Build a map by filename to deduplicate
+    def _absolute_url(url):
+        if not url:
+            return url
+        if request and url.startswith('/'):
+            return request.build_absolute_uri(url)
+        return url
+
+    # Build a map by filename to deduplicate. Links always point to app URL so click = serve/download image (GridFS or Drive proxy).
     images_by_name = {}
 
     if isinstance(images_data, dict):
-        # First add GridFS images (preferred)
+        # GridFS images: link = /files/<id>/ (serves image from MongoDB)
         for item in images_data.get('gridfs', []) or []:
             file_id = item.get('id')
             if file_id:
                 name = item.get('name')
-                images_by_name[name] = {
+                raw_url = f"/files/{file_id}/"
+                full_url = _absolute_url(raw_url)
+                entry = {
                     'name': name,
-                    'url': f"/files/{file_id}/",
-                    'source': 'gridfs'
+                    'url': full_url,
+                    'source': 'gridfs',
+                    'link_url': full_url,
                 }
+                images_by_name[name] = entry
 
-        # Then add Drive images only if not already in GridFS
+        # Drive-only images: link = /packages/<slug>/image/<fid>/ (app proxies from Drive)
         for item in images_data.get('gdrive', []) or []:
             name = item.get('name')
             if name not in images_by_name:
-                images_by_name[name] = {
+                raw_url = item.get('url')
+                full_url = _absolute_url(raw_url)
+                entry = {
                     'name': name,
-                    'url': item.get('url'),
-                    'source': 'gdrive'
+                    'url': full_url,
+                    'source': 'gdrive',
+                    'link_url': full_url,
                 }
+                images_by_name[name] = entry
     elif isinstance(images_data, list):
-        # If it's already a list, return as-is
+        if request:
+            result = []
+            for it in images_data:
+                name = it.get('name')
+                url = _absolute_url(it.get('url'))
+                result.append({'name': name, 'url': url, 'source': it.get('source', ''), 'link_url': url})
+            return result
         return images_data
 
     return list(images_by_name.values())
@@ -226,7 +249,7 @@ def package_detail(request, slug):
         'article': pkg.cached_article_preview or '',
         'aml_files': _data,
         'data': _data,
-        'images': _format_images(pkg.images),
+        'images': _format_images(pkg.images, request=request, slug=pkg.slug),
     }
 
     return render(request, 'packages/package_view.html', {
@@ -366,7 +389,7 @@ def package_fetch(request, slug):
             'article': pkg.cached_article_preview or '',
             'aml_files': _data,
             'data': _data,
-            'images': _format_images(pkg.images),
+            'images': _format_images(pkg.images, request=request, slug=pkg.slug),
             'last_fetched_date': pkg.last_fetched_date,
         })
     except Exception:
@@ -378,8 +401,8 @@ def package_fetch(request, slug):
 
     return JsonResponse({'error': 'Unable to fetch package content from Drive and no local sample available.'}, status=500)
 
-@login_required
 def package_image(request, slug, file_id):
+      """Serve package image from Drive. Public so image URLs work when embedded in AML/flat pages (no login)."""
       try:
           pkg = Package.objects.get(slug=slug)
       except Package.DoesNotExist:

@@ -16,6 +16,34 @@ CSRF_TRUSTED_ORIGINS = [
     'https://oink.dailybruin.com',
 ]
 
+
+# Optional: base URL for asset links when not using S3 (e.g. https://assets3.dailybruin.com).
+ASSETS_BASE_URL = os.getenv('ASSETS_BASE_URL', '').strip() or None
+
+# S3 upload – reuse Kerckhoff-style env so you can use the same bucket (no new bucket needed).
+# Use real IAM access keys (not placeholders like "key"); in Docker, ensure .env or environment
+# passes AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY into the container.
+# With S3_ASSETS_UPLOAD_BUCKET=assets.dailybruin.com + AWS keys, Oink uploads images to that
+# bucket and the link under each image is https://assets.dailybruin.com/images/{slug}/{stem}-{hash}.jpg
+# (same key format as Kerckhoff). Download-on-click is controlled by your CDN/S3 (Content-Disposition).
+# S3_SITE_UPLOAD_BUCKET is not used by Oink; only assets bucket is used for image uploads.
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '').strip() or None
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '').strip() or None
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1').strip()
+# Bucket to upload images to. Default: S3_ASSETS_UPLOAD_BUCKET so one var = same bucket as Kerckhoff.
+AWS_STORAGE_BUCKET_NAME = (
+    os.getenv('AWS_STORAGE_BUCKET_NAME', '').strip() or
+    os.getenv('S3_BUCKET', '').strip() or
+    os.getenv('S3_ASSETS_UPLOAD_BUCKET', '').strip() or
+    None
+)
+# Public URL for image links. Default: https:// + S3_ASSETS_UPLOAD_BUCKET (e.g. https://assets.dailybruin.com).
+_s3_domain = (os.getenv('S3_DOMAIN_OF_UPLOADED_IMAGES', '').strip() or
+              os.getenv('S3_ASSETS_UPLOAD_BUCKET', '').strip() or None)
+if _s3_domain and not _s3_domain.startswith(('http://', 'https://')):
+    _s3_domain = f'https://{_s3_domain}'
+S3_DOMAIN_OF_UPLOADED_IMAGES = _s3_domain or None
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -110,7 +138,9 @@ GOOGLE_SHARE_DOMAIN = os.getenv('GOOGLE_SHARE_DOMAIN', '')
 REPOSITORY_FOLDER_ID = os.getenv('REPOSITORY_FOLDER_ID', '')
 GOOGLE_DRIVE_ROOT = os.getenv('GOOGLE_DRIVE_ROOT', 'https://drive.google.com/drive/folders')
 
-# MongoDB / GridFS configuration (for file storage)
+# MongoDB / GridFS configuration (for file storage).
+# When MONGODB_FILESTORE_ENABLED=1, fetched images are stored in GridFS and the link under each
+# image is your app URL (e.g. https://yoursite.com/files/<id>/); opening it serves the image (no S3).
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017')
 MONGODB_DB_NAME = os.getenv('MONGODB_DB_NAME', 'oink')
 MONGODB_BUCKET = os.getenv('MONGODB_BUCKET', 'files')

@@ -14,3 +14,7 @@ pymongo>=4.6
 archieml>=0.3.2
 
 whitenoise>=6.11.0
+
+# S3 upload (Drive images → assets)
+boto3>=1.28.0
+Pillow>=10.0.0
